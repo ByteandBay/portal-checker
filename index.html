@@ -39,26 +39,28 @@
                 </a>
                 <h2 class="font-black text-2xl tracking-wide">PORTAL CHECKER VAPEBOSS</h2>
             </div>
-            <button @click="fetchCheckerData" class="bg-emerald-500 px-5 py-2.5 rounded font-black hover:bg-emerald-400 text-slate-900 flex items-center gap-2 shadow-md transition-transform active:scale-95">
-                <span>🔄 Tarik Master Data Barcode</span>
-            </button>
+            <div class="flex items-center gap-3">
+                <!-- TOMBOL LOCK DI PINDAH KE HEADER -->
+                <button @click="isCheckerLocked = !isCheckerLocked" 
+                        class="w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all shadow-md"
+                        :class="isCheckerLocked ? 'bg-emerald-500 hover:bg-emerald-400' : 'bg-slate-300/30 hover:bg-slate-300/50 border-2 border-slate-300 border-dashed'"
+                        :title="isCheckerLocked ? 'Buka Kunci Info' : 'Kunci Info'">
+                    <span v-if="isCheckerLocked">🛡️</span>
+                    <span v-else class="opacity-50">🔓</span>
+                </button>
+                <button @click="fetchCheckerData" class="bg-emerald-500 px-5 py-2.5 rounded font-black hover:bg-emerald-400 text-slate-900 flex items-center gap-2 shadow-md transition-transform active:scale-95">
+                    <span>🔄 Tarik Master Data Barcode</span>
+                </button>
+            </div>
         </div>
 
         <!-- HEADER ADMINISTRATIF -->
         <div class="p-6 border-b border-gray-200 bg-gray-50 grid grid-cols-3 gap-6">
-            <div class="col-span-3 flex justify-between items-center bg-gray-200 px-4 py-2 rounded-lg border border-gray-300">
-                <span class="text-sm font-bold text-gray-600">INFORMASI ADMINISTRATIF</span>
-                <button @click="isCheckerLocked = !isCheckerLocked" class="px-5 py-2 rounded-md font-bold text-sm shadow-sm transition-all flex items-center gap-2" :class="isCheckerLocked ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-amber-500 text-white hover:bg-amber-600'">
-                    <span v-if="isCheckerLocked">🔒 INFO TERKUNCI (Klik untuk Edit)</span>
-                    <span v-else>🔓 KUNCI INFO (Simpan & Tampilkan Data)</span>
-                </button>
-            </div>
-
             <!-- GUDANG TUJUAN -->
             <div class="flex flex-col relative">
                 <label class="text-xs font-bold text-gray-500 mb-1">Gudang Tujuan/Dari</label>
                 <div class="relative">
-                    <input ref="gudangInput" type="text" v-model="checkerForm.cabang" :disabled="isCheckerLocked" autocomplete="off" @focus="showGudangList = true; $event.target.select()" @blur="setTimeout(() => showGudangList = false, 200)" placeholder="Ketik / Pilih Gudang..." class="w-full border-2 border-gray-300 p-3 pr-10 rounded font-bold focus:border-blue-500 outline-none uppercase disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed">
+                    <input ref="gudangInput" type="text" v-model="checkerForm.cabang" :disabled="isCheckerLocked" autocomplete="off" @focus="showGudangList = true; $event.target.select()" @blur="setTimeout(() => showGudangList = false, 200)" placeholder="KETIK / PILIH GUDANG..." class="w-full border-2 border-gray-300 p-3 pr-10 rounded font-bold focus:border-blue-500 outline-none uppercase disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed">
                     <button v-if="checkerForm.cabang && !isCheckerLocked" @mousedown.prevent="checkerForm.cabang = ''; checkerForm.noIt = ''; showGudangList = true; $nextTick(() =>$refs.gudangInput.focus())" class="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-700 font-black text-xl z-10">✖</button>
                 </div>
                 <div v-if="showGudangList && !isCheckerLocked" class="absolute top-[100%] left-0 right-0 bg-white border-2 border-blue-400 mt-1 rounded shadow-xl z-50 max-h-60 overflow-y-auto">
@@ -70,7 +72,7 @@
             <div class="flex flex-col relative">
                 <label class="text-xs font-bold text-gray-500 mb-1">No. Pemindahan #</label>
                 <div class="relative">
-                    <input ref="noItInput" type="text" v-model="checkerForm.noIt" :disabled="isCheckerLocked || !checkerForm.cabang" autocomplete="off" @focus="showNoItList = true; $event.target.select()" @blur="setTimeout(() => showNoItList = false, 200)" placeholder="Ketik / Pilih No..." class="w-full border-2 border-gray-300 p-3 pr-10 rounded font-bold focus:border-blue-500 outline-none uppercase disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed">
+                    <input ref="noItInput" type="text" v-model="checkerForm.noIt" :disabled="isCheckerLocked || !checkerForm.cabang" autocomplete="off" @focus="showNoItList = true; $event.target.select()" @blur="setTimeout(() => showNoItList = false, 200)" placeholder="KETIK / PILIH NO..." class="w-full border-2 border-gray-300 p-3 pr-10 rounded font-bold focus:border-blue-500 outline-none uppercase disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed">
                     <button v-if="checkerForm.noIt && !isCheckerLocked" @mousedown.prevent="checkerForm.noIt = ''; showNoItList = true; $nextTick(() =>$refs.noItInput.focus())" class="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-700 font-black text-xl z-10">✖</button>
                 </div>
                 <div v-if="showNoItList && !isCheckerLocked" class="absolute top-[100%] left-0 right-0 bg-white border-2 border-blue-400 mt-1 rounded shadow-xl z-50 max-h-60 overflow-y-auto">
@@ -78,12 +80,13 @@
                 </div>
             </div>
 
-            <!-- FILTER UI -->
+            <!-- PIC CHECKER -->
             <div class="flex flex-col">
                 <label class="text-xs font-bold text-gray-500 mb-1">PIC Checker</label>
-                <input type="text" v-model="checkerForm.pic" :disabled="isCheckerLocked" placeholder="Nama Anda..." class="border-2 border-gray-300 p-3 rounded font-bold focus:border-blue-500 outline-none uppercase disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed">
+                <input type="text" v-model="checkerForm.pic" :disabled="isCheckerLocked" placeholder="NAMA ANDA..." class="border-2 border-gray-300 p-3 rounded font-bold focus:border-blue-500 outline-none uppercase disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed">
             </div>
             
+            <!-- FILTER KATEGORI -->
             <div class="flex flex-col">
                 <label class="text-xs font-bold text-gray-500 mb-1">Filter Kategori</label>
                 <select v-model="checkerFilter.kategori" class="border-2 border-gray-300 p-3 rounded font-bold focus:border-blue-500 outline-none">
@@ -91,6 +94,8 @@
                     <option v-for="cat in checkerCategories" :key="cat" :value="cat">{{ cat }}</option>
                 </select>
             </div>
+
+            <!-- FILTER STATUS -->
             <div class="flex flex-col">
                 <label class="text-xs font-bold text-gray-500 mb-1">Filter Status</label>
                 <select v-model="checkerFilter.status" class="border-2 border-gray-300 p-3 rounded font-bold focus:border-blue-500 outline-none">
@@ -102,19 +107,26 @@
             </div>
         </div>
 
-        <!-- AREA SCAN BARCODE -->
-        <div class="p-6 bg-slate-100 border-b border-slate-200 grid grid-cols-[3fr_1fr] gap-6 items-end">
-            <div class="flex flex-col relative">
-                <label class="text-sm font-black text-slate-800 mb-2 flex items-center gap-2">
+        <!-- AREA SCAN BARCODE & INFO -->
+        <div class="p-6 bg-[#eaf3fc] border-b border-blue-200 grid grid-cols-[3fr_1fr] gap-6 items-start">
+            <div class="flex flex-col relative gap-3">
+                <label class="text-sm font-black text-slate-800 flex items-center gap-2">
                     <span>🔍 Scan / Input Barcode / Item Name</span>
                     <span class="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded animate-pulse">AUTOFOCUS ON</span>
                 </label>
-                <input ref="scanInput" type="text" list="item-suggestions" v-model="currentScan" @keyup.enter="handleScan" placeholder="Tembakkan Barcode Scanner di sini..." class="border-4 border-slate-300 p-4 rounded-lg font-black text-xl text-slate-800 focus:border-blue-600 outline-none shadow-inner bg-white">
+                <input ref="scanInput" type="text" list="item-suggestions" v-model="currentScan" @keyup.enter="handleScan" placeholder="Tembakkan Barcode Scanner di sini..." class="border-4 border-blue-400 p-4 rounded-lg font-black text-xl text-slate-800 focus:border-blue-600 outline-none shadow-inner bg-white">
                 <datalist id="item-suggestions"><option v-for="name in itemSuggestionsList" :key="name" :value="name"></option></datalist>
+                
+                <!-- NEW: DISPLAY INFO BARCODE -->
+                <input type="text" disabled :value="lastScannedName" placeholder="nama sesuai barcode diatas/barcode sesuai nama diatas" class="border-4 border-blue-300 p-4 rounded-lg font-bold text-base text-gray-500 outline-none bg-blue-50">
             </div>
-            <div class="flex flex-col">
-                <label class="text-sm font-black text-slate-800 mb-2">Kuantitas Ketik (Default 1)</label>
-                <input type="number" min="1" v-model.number="currentScanQty" class="border-4 border-slate-300 p-4 rounded-lg font-black text-xl text-center text-slate-800 focus:border-blue-600 outline-none bg-white">
+            
+            <div class="flex flex-col gap-3">
+                <label class="text-sm font-black text-slate-800">Kuantitas Ketik (Default 1)</label>
+                <input type="number" min="1" v-model.number="currentScanQty" class="border-4 border-blue-400 p-4 rounded-lg font-black text-xl text-center text-slate-800 focus:border-blue-600 outline-none bg-white">
+                
+                <!-- NEW: DISPLAY TARGET/SELISIH -->
+                <input type="text" disabled :value="lastScannedTarget" placeholder="jumlah target/selisih" class="border-4 border-blue-300 p-4 rounded-lg font-bold text-base text-center text-gray-500 outline-none bg-blue-50">
             </div>
         </div>
 
@@ -223,6 +235,11 @@
                     checkerFilter: { kategori: 'Semua Kategori', status: 'Semua' },
                     currentScan: '',
                     currentScanQty: 1,
+                    
+                    // State baru untuk Display Kotak Bawah
+                    lastScannedName: '',
+                    lastScannedTarget: '',
+                    
                     showGudangList: false,
                     showNoItList: false,
                     showRekapModal: false
@@ -324,7 +341,13 @@
                     if (foundItem) {
                         foundItem['Fisik'] += this.currentScanQty;
                         
-                        // Memicu animasi highlight css
+                        // Update UI display boxes
+                        this.lastScannedName = `✅ ${foundItem['Nama Barang']} (${foundItem['Kode Barang']})`;
+                        let qtyTarget = foundItem['Kuantitas'] || 0;
+                        let selisih = foundItem['Fisik'] - qtyTarget;
+                        let selisihStr = selisih > 0 ? `+${selisih}` : selisih;
+                        this.lastScannedTarget = `Target: ${qtyTarget} | Selisih: ${selisihStr}`;
+
                         foundItem.highlight = false; 
                         this.$nextTick(() => {
                             foundItem.highlight = true;
@@ -335,6 +358,8 @@
                         else { this.playSound('success'); }
                     } else {
                         this.playSound('error');
+                        this.lastScannedName = `❌ BARANG TIDAK DITEMUKAN: ${this.currentScan}`;
+                        this.lastScannedTarget = `-`;
                         alert(`❌ BARANG TIDAK DITEMUKAN!\n\nBarcode/Nama "${this.currentScan}" tidak ada dalam daftar.`);
                     }
                     this.currentScan = ''; this.currentScanQty = 1;
