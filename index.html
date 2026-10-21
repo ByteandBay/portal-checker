@@ -103,13 +103,27 @@
         <div class="p-6 bg-[#eaf3fc] border-b border-blue-200 grid grid-cols-[3fr_1fr] gap-6 items-start">
             <div class="flex flex-col relative gap-3">
                 <label class="text-sm font-black text-slate-800 flex items-center gap-2">
-                    <span>🔍 Scan / Input Barcode / Item Name</span>
+                    <span>🔍 Scan Barcode / Ketik Item Name</span>
                     <span class="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded animate-pulse">AUTOFOCUS ON</span>
                 </label>
                 
-                <!-- LANGKAH 1: KETIK / SCAN (Otomatis cek & trigger Enter ke fungsi moveToQty) -->
-                <input ref="scanInput" type="text" list="item-suggestions" v-model="currentScan" @keyup.enter="moveToQty" placeholder="Tembakkan Barcode Scanner di sini..." class="border-4 border-blue-400 p-4 rounded-lg font-black text-xl text-slate-800 focus:border-blue-600 outline-none shadow-inner bg-white">
-                <datalist id="item-suggestions"><option v-for="name in itemSuggestionsList" :key="name" :value="name"></option></datalist>
+                <!-- LANGKAH 1: KETIK / SCAN DENGAN CUSTOM AUTOCOMPLETE -->
+                <div class="relative w-full">
+                    <input ref="scanInput" type="text" v-model="currentScan" @keyup.enter="moveToQty" 
+                           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                           placeholder="Tembakkan Scanner / Ketik Sebagian Nama..." 
+                           class="w-full border-4 border-blue-400 p-4 rounded-lg font-black text-xl text-slate-800 focus:border-blue-600 outline-none shadow-inner bg-white">
+                    
+                    <!-- CUSTOM DROPDOWN SUGGESTIONS (Hanya muncul jika diketik dan belum exact match) -->
+                    <div v-if="customSuggestionsList.length > 0" 
+                         class="absolute top-[100%] left-0 right-0 bg-white border-4 border-blue-400 mt-1 rounded-lg shadow-2xl z-50 max-h-64 overflow-y-auto">
+                        <div v-for="sug in customSuggestionsList" :key="sug" 
+                             @mousedown.prevent="selectCustomSuggestion(sug)"
+                             class="p-4 border-b border-gray-100 hover:bg-blue-100 cursor-pointer font-bold text-sm text-slate-800 transition-colors">
+                            {{ sug }}
+                        </div>
+                    </div>
+                </div>
                 
                 <!-- KOTAK INFO REAL-TIME: Otomatis mendeteksi tanpa tekan Enter -->
                 <input type="text" disabled :value="liveScannedName" placeholder="nama sesuai barcode / barcode sesuai nama" class="border-4 border-blue-300 p-4 rounded-lg font-bold text-base text-gray-500 outline-none bg-blue-50">
@@ -118,7 +132,7 @@
             <div class="flex flex-col gap-3">
                 <label class="text-sm font-black text-slate-800">Kuantitas Ketik (Default 1)</label>
                 
-                <!-- LANGKAH 2: INPUT QTY (Otomatis Highlight Angka, ketik angka menimpa 1, lalu Enter submitScan) -->
+                <!-- LANGKAH 2: INPUT QTY -->
                 <input ref="qtyInput" type="number" min="1" v-model.number="currentScanQty" @keyup.enter="submitScan" class="border-4 border-blue-400 p-4 rounded-lg font-black text-xl text-center text-slate-800 focus:border-blue-600 outline-none bg-white">
                 
                 <!-- KOTAK INFO TARGET REAL-TIME -->
@@ -262,10 +276,6 @@
                     const cats = new Set(data.map(i => i['Kategori']));
                     return Array.from(cats).filter(c => c && c.toString().trim() !== '');
                 },
-                itemSuggestionsList() {
-                    const names = this.sortedCheckerItems.map(i => i['Nama Barang']);
-                    return Array.from(new Set(names));
-                },
                 sortedCheckerItems() {
                     let data = this.checkerItems;
                     if (!this.checkerForm.cabang || !this.checkerForm.noIt) return [];
@@ -288,6 +298,27 @@
                     if (!this.checkerForm.cabang || !this.checkerForm.noIt) return [];
                     let data = this.checkerItems.filter(i => i['Gudang Tujuan/Dari'] === this.checkerForm.cabang && i['No. Pemindahan #'] === this.checkerForm.noIt);
                     return data.filter(i => i['Fisik'] !== (i['Kuantitas'] || 0));
+                },
+
+                // LOGIKA CUSTOM AUTOCOMPLETE PENCARIAN
+                itemSuggestionsList() {
+                    const names = this.sortedCheckerItems.map(i => i['Nama Barang']);
+                    return Array.from(new Set(names));
+                },
+                customSuggestionsList() {
+                    if (!this.currentScan || this.currentScan.trim() === '') return [];
+                    const query = this.currentScan.toLowerCase();
+                    
+                    // Jika teks persis sama dengan Nama Barang atau Barcode, matikan dropdown
+                    const exactMatch = this.itemSuggestionsList.some(name => name.toLowerCase() === query);
+                    const exactBarcode = this.sortedCheckerItems.some(i => i['Kode Barang'] && i['Kode Barang'].toString().toLowerCase() === query);
+                    
+                    if (exactMatch || exactBarcode) return []; 
+
+                    // Tampilkan saran yang cocok (dibatasi 20 agar UI ringan)
+                    return this.itemSuggestionsList
+                        .filter(name => name.toLowerCase().includes(query))
+                        .slice(0, 20);
                 },
 
                 // LOGIKA PENCARIAN REAL-TIME UNTUK KOTAK DISPLAY
@@ -344,7 +375,16 @@
                     osc.stop(ctx.currentTime + 0.3);
                 },
 
-                // METHOD KETIKA ENTER DITEKAN DI KOLOM SCAN
+                // METHOD KETIKA ITEM DARI DROPDOWN DIKLIK
+                selectCustomSuggestion(name) {
+                    this.currentScan = name;
+                    // Tunggu state Vue terupdate, lalu paksa lanjut ke kuantitas
+                    this.$nextTick(() => {
+                        this.moveToQty();
+                    });
+                },
+
+                // METHOD KETIKA ENTER DITEKAN DI KOLOM SCAN ATAU ITEM DIKLIK
                 moveToQty() {
                     if(!this.checkerForm.cabang || !this.checkerForm.noIt) {
                         this.playSound('error');
