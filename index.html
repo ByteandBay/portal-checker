@@ -11,12 +11,21 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-        .checker-table th { background-color: #4ade80; color: #064e3b; padding: 12px; border: 2px solid #000; text-align: left; position: sticky; top: 0; z-index: 10;}
-        .checker-table td { padding: 10px; border: 2px solid #000; font-weight: 600; }
-        .row-green { background-color: #d1fae5; }
-        .row-yellow { background-color: #fef08a; }
-        .row-red { background-color: #fecaca; color: #7f1d1d; }
+        /* Skema Warna yang Dinetralkan */
+        .checker-table th { background-color: #f1f5f9; color: #334155; padding: 12px; border: 2px solid #cbd5e1; text-align: left; position: sticky; top: 0; z-index: 10; font-weight: 900;}
+        .checker-table td { padding: 10px; border: 2px solid #e2e8f0; font-weight: 600; }
+        
+        .row-green { background-color: #f0fdf4; }
+        .row-yellow { background-color: #fefce8; }
+        .row-red { background-color: #fef2f2; color: #7f1d1d; }
         .row-white { background-color: #ffffff; }
+
+        /* Animasi Highlight Pasca Scan */
+        .highlight-scan { animation: highlight-fade 1.5s ease-out; }
+        @keyframes highlight-fade {
+            0% { background-color: #fde047; transform: scale(1.01); }
+            100% { background-color: inherit; transform: scale(1); }
+        }
     </style>
 </head>
 <body class="text-gray-900">
@@ -25,7 +34,6 @@
         <!-- HEADER APP -->
         <div class="bg-blue-800 text-white p-4 shadow-md flex items-center justify-between">
             <div class="flex items-center gap-4">
-                <!-- TOMBOL KEMBALI KE PICKER -->
                 <a href="https://byteandbay.github.io/picker-webapp/" class="bg-blue-900 px-4 py-2 rounded font-bold hover:bg-blue-700 transition border border-blue-600 shadow-inner text-sm inline-block no-underline">
                     ⬅ Buka Portal Picker
                 </a>
@@ -36,66 +44,44 @@
             </button>
         </div>
 
-        <!-- HEADER ADMINISTRATIF (DENGAN CUSTOM SEARCHABLE DROPDOWN) -->
+        <!-- HEADER ADMINISTRATIF -->
         <div class="p-6 border-b border-gray-200 bg-gray-50 grid grid-cols-3 gap-6">
-            <!-- Baris Khusus Tombol Lock -->
             <div class="col-span-3 flex justify-between items-center bg-gray-200 px-4 py-2 rounded-lg border border-gray-300">
                 <span class="text-sm font-bold text-gray-600">INFORMASI ADMINISTRATIF</span>
-                <button @click="isCheckerLocked = !isCheckerLocked" 
-                        class="px-5 py-2 rounded-md font-bold text-sm shadow-sm transition-all flex items-center gap-2"
-                        :class="isCheckerLocked ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-amber-500 text-white hover:bg-amber-600'">
+                <button @click="isCheckerLocked = !isCheckerLocked" class="px-5 py-2 rounded-md font-bold text-sm shadow-sm transition-all flex items-center gap-2" :class="isCheckerLocked ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-amber-500 text-white hover:bg-amber-600'">
                     <span v-if="isCheckerLocked">🔒 INFO TERKUNCI (Klik untuk Edit)</span>
                     <span v-else>🔓 KUNCI INFO (Simpan & Tampilkan Data)</span>
                 </button>
             </div>
 
-            <!-- GUDANG TUJUAN (CUSTOM DROPDOWN) -->
+            <!-- GUDANG TUJUAN -->
             <div class="flex flex-col relative">
                 <label class="text-xs font-bold text-gray-500 mb-1">Gudang Tujuan/Dari</label>
                 <div class="relative">
-                    <input ref="gudangInput" type="text" v-model="checkerForm.cabang" :disabled="isCheckerLocked" autocomplete="off"
-                           @focus="showGudangList = true; $event.target.select()"
-                           @blur="setTimeout(() => showGudangList = false, 200)"
-                           placeholder="Ketik / Pilih Gudang..." 
-                           class="w-full border-2 border-gray-300 p-3 pr-10 rounded font-bold focus:border-blue-500 outline-none uppercase disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed">
-                    <button v-if="checkerForm.cabang && !isCheckerLocked" @mousedown.prevent="checkerForm.cabang = ''; checkerForm.noIt = ''; showGudangList = true; $nextTick(() =>$refs.gudangInput.focus())" 
-                            class="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-700 font-black text-xl z-10">✖</button>
+                    <input ref="gudangInput" type="text" v-model="checkerForm.cabang" :disabled="isCheckerLocked" autocomplete="off" @focus="showGudangList = true; $event.target.select()" @blur="setTimeout(() => showGudangList = false, 200)" placeholder="Ketik / Pilih Gudang..." class="w-full border-2 border-gray-300 p-3 pr-10 rounded font-bold focus:border-blue-500 outline-none uppercase disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed">
+                    <button v-if="checkerForm.cabang && !isCheckerLocked" @mousedown.prevent="checkerForm.cabang = ''; checkerForm.noIt = ''; showGudangList = true; $nextTick(() =>$refs.gudangInput.focus())" class="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-700 font-black text-xl z-10">✖</button>
                 </div>
                 <div v-if="showGudangList && !isCheckerLocked" class="absolute top-[100%] left-0 right-0 bg-white border-2 border-blue-400 mt-1 rounded shadow-xl z-50 max-h-60 overflow-y-auto">
-                    <div v-for="gudang in dynamicGudangList.filter(g => g.toLowerCase().includes(checkerForm.cabang.toLowerCase()))" :key="gudang"
-                         @mousedown.prevent="checkerForm.cabang = gudang; checkerForm.noIt = ''; showGudangList = false"
-                         class="p-3 border-b border-gray-100 hover:bg-blue-100 cursor-pointer font-bold text-sm uppercase">
-                        {{ gudang }}
-                    </div>
+                    <div v-for="gudang in dynamicGudangList.filter(g => g.toLowerCase().includes(checkerForm.cabang.toLowerCase()))" :key="gudang" @mousedown.prevent="checkerForm.cabang = gudang; checkerForm.noIt = ''; showGudangList = false" class="p-3 border-b border-gray-100 hover:bg-blue-100 cursor-pointer font-bold text-sm uppercase">{{ gudang }}</div>
                 </div>
             </div>
 
-            <!-- NO PEMINDAHAN (CUSTOM DROPDOWN) -->
+            <!-- NO PEMINDAHAN -->
             <div class="flex flex-col relative">
                 <label class="text-xs font-bold text-gray-500 mb-1">No. Pemindahan #</label>
                 <div class="relative">
-                    <input ref="noItInput" type="text" v-model="checkerForm.noIt" :disabled="isCheckerLocked || !checkerForm.cabang" autocomplete="off"
-                           @focus="showNoItList = true; $event.target.select()"
-                           @blur="setTimeout(() => showNoItList = false, 200)"
-                           placeholder="Ketik / Pilih No..." 
-                           class="w-full border-2 border-gray-300 p-3 pr-10 rounded font-bold focus:border-blue-500 outline-none uppercase disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed">
-                    <button v-if="checkerForm.noIt && !isCheckerLocked" @mousedown.prevent="checkerForm.noIt = ''; showNoItList = true; $nextTick(() =>$refs.noItInput.focus())" 
-                            class="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-700 font-black text-xl z-10">✖</button>
+                    <input ref="noItInput" type="text" v-model="checkerForm.noIt" :disabled="isCheckerLocked || !checkerForm.cabang" autocomplete="off" @focus="showNoItList = true; $event.target.select()" @blur="setTimeout(() => showNoItList = false, 200)" placeholder="Ketik / Pilih No..." class="w-full border-2 border-gray-300 p-3 pr-10 rounded font-bold focus:border-blue-500 outline-none uppercase disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed">
+                    <button v-if="checkerForm.noIt && !isCheckerLocked" @mousedown.prevent="checkerForm.noIt = ''; showNoItList = true; $nextTick(() =>$refs.noItInput.focus())" class="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-700 font-black text-xl z-10">✖</button>
                 </div>
                 <div v-if="showNoItList && !isCheckerLocked" class="absolute top-[100%] left-0 right-0 bg-white border-2 border-blue-400 mt-1 rounded shadow-xl z-50 max-h-60 overflow-y-auto">
-                    <div v-for="no in dynamicNoItList.filter(n => n.toLowerCase().includes(checkerForm.noIt.toLowerCase()))" :key="no"
-                         @mousedown.prevent="checkerForm.noIt = no; showNoItList = false"
-                         class="p-3 border-b border-gray-100 hover:bg-blue-100 cursor-pointer font-bold text-sm uppercase">
-                        {{ no }}
-                    </div>
+                    <div v-for="no in dynamicNoItList.filter(n => n.toLowerCase().includes(checkerForm.noIt.toLowerCase()))" :key="no" @mousedown.prevent="checkerForm.noIt = no; showNoItList = false" class="p-3 border-b border-gray-100 hover:bg-blue-100 cursor-pointer font-bold text-sm uppercase">{{ no }}</div>
                 </div>
             </div>
 
             <!-- FILTER UI -->
             <div class="flex flex-col">
                 <label class="text-xs font-bold text-gray-500 mb-1">PIC Checker</label>
-                <input type="text" v-model="checkerForm.pic" :disabled="isCheckerLocked" placeholder="Nama Anda..." 
-                       class="border-2 border-gray-300 p-3 rounded font-bold focus:border-blue-500 outline-none uppercase disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed">
+                <input type="text" v-model="checkerForm.pic" :disabled="isCheckerLocked" placeholder="Nama Anda..." class="border-2 border-gray-300 p-3 rounded font-bold focus:border-blue-500 outline-none uppercase disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed">
             </div>
             
             <div class="flex flex-col">
@@ -116,23 +102,19 @@
             </div>
         </div>
 
-        <!-- AREA SCAN BARCODE & AUTO-SUGGESTION -->
-        <div class="p-6 bg-blue-100 border-b border-blue-200 grid grid-cols-[3fr_1fr] gap-6 items-end">
+        <!-- AREA SCAN BARCODE -->
+        <div class="p-6 bg-slate-100 border-b border-slate-200 grid grid-cols-[3fr_1fr] gap-6 items-end">
             <div class="flex flex-col relative">
-                <label class="text-sm font-black text-blue-900 mb-2 flex items-center gap-2">
+                <label class="text-sm font-black text-slate-800 mb-2 flex items-center gap-2">
                     <span>🔍 Scan / Input Barcode / Item Name</span>
                     <span class="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded animate-pulse">AUTOFOCUS ON</span>
                 </label>
-                <input ref="scanInput" type="text" list="item-suggestions" v-model="currentScan" @keyup.enter="handleScan" placeholder="Tembakkan Barcode Scanner di sini..." 
-                       class="border-4 border-blue-400 p-4 rounded-lg font-black text-xl text-blue-900 focus:border-blue-600 outline-none shadow-inner bg-white">
-                <datalist id="item-suggestions">
-                    <option v-for="name in itemSuggestionsList" :key="name" :value="name"></option>
-                </datalist>
+                <input ref="scanInput" type="text" list="item-suggestions" v-model="currentScan" @keyup.enter="handleScan" placeholder="Tembakkan Barcode Scanner di sini..." class="border-4 border-slate-300 p-4 rounded-lg font-black text-xl text-slate-800 focus:border-blue-600 outline-none shadow-inner bg-white">
+                <datalist id="item-suggestions"><option v-for="name in itemSuggestionsList" :key="name" :value="name"></option></datalist>
             </div>
             <div class="flex flex-col">
-                <label class="text-sm font-black text-blue-900 mb-2">Kuantitas Ketik (Default 1)</label>
-                <input type="number" min="1" v-model.number="currentScanQty" 
-                       class="border-4 border-blue-400 p-4 rounded-lg font-black text-xl text-center text-blue-900 focus:border-blue-600 outline-none bg-white">
+                <label class="text-sm font-black text-slate-800 mb-2">Kuantitas Ketik (Default 1)</label>
+                <input type="number" min="1" v-model.number="currentScanQty" class="border-4 border-slate-300 p-4 rounded-lg font-black text-xl text-center text-slate-800 focus:border-blue-600 outline-none bg-white">
             </div>
         </div>
 
@@ -149,29 +131,19 @@
                         <th class="w-1/6">Kategori</th>
                         <th class="w-1/6">Kode Barang</th>
                         <th class="w-2/6">Nama Barang</th>
-                        <th class="w-1/12 text-center bg-blue-100">Target / Sisa</th>
+                        <th class="w-1/12 text-center bg-slate-200">Target / Sisa</th>
                         <th class="w-1/12 text-center bg-yellow-100">Fisik</th>
-                        <th class="w-1/12 text-center bg-gray-100">Selisih</th>
+                        <th class="w-1/12 text-center">Selisih</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="item in sortedCheckerItems" :key="item['Kode Barang']" :class="getRowColor(item)">
+                    <tr v-for="item in sortedCheckerItems" :key="item['Kode Barang']" :class="[getRowColor(item), item.highlight ? 'highlight-scan' : '']">
                         <td>{{ item['Kategori'] }}</td>
                         <td class="font-mono text-sm">{{ item['Kode Barang'] }}</td>
                         <td>{{ item['Nama Barang'] }}</td>
-                        
-                        <!-- Kolom Target Sisa -->
-                        <td class="text-center text-xl font-black bg-white/40">
-                            <span :class="(item['Kuantitas'] || 0) - item['Fisik'] < 0 ? 'text-red-600' : 'text-blue-900'">
-                                {{ (item['Kuantitas'] || 0) - item['Fisik'] }}
-                            </span>
-                        </td>
-                        
-                        <!-- Kolom Fisik & Edit Mode -->
+                        <td class="text-center text-xl font-black bg-white/40"><span :class="(item['Kuantitas'] || 0) - item['Fisik'] < 0 ? 'text-red-600' : 'text-slate-800'">{{ (item['Kuantitas'] || 0) - item['Fisik'] }}</span></td>
                         <td class="text-center bg-white/60">
-                            <div v-if="!item.editMode" @click="item.editMode = true" class="text-xl font-black cursor-pointer hover:bg-yellow-200 py-1 rounded transition" title="Klik untuk edit fisik">
-                                {{ item['Fisik'] }} ✏️
-                            </div>
+                            <div v-if="!item.editMode" @click="item.editMode = true" class="text-xl font-black cursor-pointer hover:bg-yellow-200 py-1 rounded transition" title="Klik untuk edit fisik">{{ item['Fisik'] }} ✏️</div>
                             <div v-else class="flex items-center justify-center gap-1">
                                 <button @click="item['Fisik'] > 0 ? item['Fisik']-- : null" class="bg-red-400 text-white w-8 h-8 rounded font-black">-</button>
                                 <span class="text-lg font-black px-2">{{ item['Fisik'] }}</span>
@@ -179,12 +151,8 @@
                                 <button @click="item.editMode = false" class="bg-slate-800 text-white px-3 py-1.5 rounded text-xs ml-1 font-bold">OK</button>
                             </div>
                         </td>
-
-                        <!-- Kolom Selisih Aktual -->
                         <td class="text-center text-xl font-black bg-white/40">
-                            <span :class="item['Fisik'] - (item['Kuantitas'] || 0) < 0 ? 'text-red-600' : (item['Fisik'] - (item['Kuantitas'] || 0) > 0 ? 'text-purple-700' : 'text-emerald-700')">
-                                {{ item['Fisik'] - (item['Kuantitas'] || 0) }}
-                            </span>
+                            <span :class="item['Fisik'] - (item['Kuantitas'] || 0) < 0 ? 'text-red-600' : (item['Fisik'] - (item['Kuantitas'] || 0) > 0 ? 'text-purple-700' : 'text-emerald-700')">{{ item['Fisik'] - (item['Kuantitas'] || 0) }}</span>
                         </td>
                     </tr>
                 </tbody>
@@ -198,12 +166,8 @@
         
         <!-- FOOTER: TOMBOL REKAP & SIMPAN -->
         <div v-if="!loading" class="bg-gray-100 p-6 border-t-4 border-gray-300 flex justify-between items-center shadow-[0_-10px_20px_rgba(0,0,0,0.05)] relative z-20">
-            <button @click="showRekapModal = true" class="bg-amber-500 text-white px-6 py-4 rounded-xl font-black shadow-lg hover:bg-amber-400 transition-all text-lg">
-                📊 LIHAT REKAP SELISIH
-            </button>
-            <button @click="alert('Fitur simpan database Checker sedang disiapkan oleh pusat!')" class="bg-blue-800 text-white px-10 py-4 rounded-xl font-black shadow-lg hover:bg-blue-700 transition-all text-lg">
-                💾 SIMPAN HASIL CHECKER
-            </button>
+            <button @click="showRekapModal = true" class="bg-amber-500 text-white px-6 py-4 rounded-xl font-black shadow-lg hover:bg-amber-400 transition-all text-lg">📊 LIHAT REKAP SELISIH</button>
+            <button @click="saveCheckerData" class="bg-blue-800 text-white px-10 py-4 rounded-xl font-black shadow-lg hover:bg-blue-700 transition-all text-lg">💾 SIMPAN HASIL CHECKER</button>
         </div>
 
         <!-- MODAL POPUP REKAP SELISIH -->
@@ -218,15 +182,15 @@
                         <thead>
                             <tr>
                                 <th>Nama Barang</th>
-                                <th class="text-center bg-blue-100">Target</th>
+                                <th class="text-center bg-slate-100">Target</th>
                                 <th class="text-center bg-yellow-100">Fisik</th>
-                                <th class="text-center bg-red-100">Status Selisih</th>
+                                <th class="text-center bg-red-50">Status Selisih</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr v-for="item in rekapSelisihList" :key="item['Kode Barang']" class="hover:bg-gray-50">
                                 <td class="font-bold">{{ item['Nama Barang'] }}</td>
-                                <td class="text-center font-black text-xl text-blue-900">{{ item['Kuantitas'] || 0 }}</td>
+                                <td class="text-center font-black text-xl text-slate-800">{{ item['Kuantitas'] || 0 }}</td>
                                 <td class="text-center font-black text-xl text-yellow-700">{{ item['Fisik'] }}</td>
                                 <td class="text-center font-black text-xl" :class="item['Fisik'] - (item['Kuantitas'] || 0) < 0 ? 'text-red-600' : 'text-purple-700'">
                                     {{ item['Fisik'] - (item['Kuantitas'] || 0) > 0 ? '+' + (item['Fisik'] - (item['Kuantitas'] || 0)) : item['Fisik'] - (item['Kuantitas'] || 0) }}
@@ -243,7 +207,6 @@
                 </div>
             </div>
         </div>
-
     </div>
 
     <script>
@@ -252,53 +215,35 @@
         createApp({
             data() {
                 return {
-                    // API Google Apps Script Pusat
                     apiUrl: 'https://script.google.com/macros/s/AKfycbw-Hlly2gks4HjfRIdD0xL3l7Uhc7I-R2dRaGWYgFMY7qkhRWOYLcSQuEuqHCMLnnsL/exec',
                     loading: false,
-                    
-                    // Checker Data & Auto-Save State
                     checkerItems: [], 
                     checkerForm: JSON.parse(localStorage.getItem('checkerForm_v2')) || { cabang: '', noIt: '', pic: '' },
                     isCheckerLocked: JSON.parse(localStorage.getItem('isCheckerLocked_v2')) || false,
-                    
                     checkerFilter: { kategori: 'Semua Kategori', status: 'Semua' },
                     currentScan: '',
                     currentScanQty: 1,
-                    
-                    // Dropdown UI State
                     showGudangList: false,
                     showNoItList: false,
-                    
-                    // Rekap Modal State
                     showRekapModal: false
                 }
             },
             watch: {
-                checkerForm: {
-                    deep: true,
-                    handler(newVal) {
-                        localStorage.setItem('checkerForm_v2', JSON.stringify(newVal));
-                    }
-                },
-                isCheckerLocked(newVal) {
-                    localStorage.setItem('isCheckerLocked_v2', JSON.stringify(newVal));
-                }
+                checkerForm: { deep: true, handler(newVal) { localStorage.setItem('checkerForm_v2', JSON.stringify(newVal)); } },
+                isCheckerLocked(newVal) { localStorage.setItem('isCheckerLocked_v2', JSON.stringify(newVal)); }
             },
             computed: {
-                // Dropdown Gudang Tujuan (Unik)
                 dynamicGudangList() {
                     if (!this.checkerItems.length) return [];
                     const set = new Set(this.checkerItems.map(i => i['Gudang Tujuan/Dari']));
                     return Array.from(set).filter(c => c && c.toString().trim() !== '').sort();
                 },
-                // Dropdown No Pemindahan (Cascading: Tergantung Pilihan Gudang)
                 dynamicNoItList() {
                     if (!this.checkerItems.length || !this.checkerForm.cabang) return [];
                     const filtered = this.checkerItems.filter(i => i['Gudang Tujuan/Dari'] === this.checkerForm.cabang);
                     const set = new Set(filtered.map(i => i['No. Pemindahan #']));
                     return Array.from(set).filter(c => c && c.toString().trim() !== '').sort();
                 },
-                // Dropdown Kategori (Berdasarkan saringan Gudang & No IT)
                 checkerCategories() {
                     let data = this.checkerItems;
                     if (this.checkerForm.cabang) { data = data.filter(i => i['Gudang Tujuan/Dari'] === this.checkerForm.cabang); }
@@ -306,23 +251,15 @@
                     const cats = new Set(data.map(i => i['Kategori']));
                     return Array.from(cats).filter(c => c && c.toString().trim() !== '');
                 },
-                
-                // AUTO-SUGGEST DATALIST ITEM
                 itemSuggestionsList() {
                     const names = this.sortedCheckerItems.map(i => i['Nama Barang']);
                     return Array.from(new Set(names));
                 },
-
-                // Tabel Filtered & Sorted
                 sortedCheckerItems() {
                     let data = this.checkerItems;
-                    
                     if (!this.checkerForm.cabang || !this.checkerForm.noIt) return [];
-
-                    // Filter Master
                     data = data.filter(i => i['Gudang Tujuan/Dari'] === this.checkerForm.cabang && i['No. Pemindahan #'] === this.checkerForm.noIt);
                     
-                    // Filter UI
                     if (this.checkerFilter.kategori !== 'Semua Kategori') { data = data.filter(i => i['Kategori'] === this.checkerFilter.kategori); }
                     if (this.checkerFilter.status === 'Kurang') { data = data.filter(i => i['Fisik'] < (i['Kuantitas'] || 0)); } 
                     else if (this.checkerFilter.status === 'Pas') { data = data.filter(i => i['Fisik'] === (i['Kuantitas'] || 0) && (i['Kuantitas'] || 0) > 0); } 
@@ -336,8 +273,6 @@
                         return 0;
                     });
                 },
-
-                // List Rekap Selisih
                 rekapSelisihList() {
                     if (!this.checkerForm.cabang || !this.checkerForm.noIt) return [];
                     let data = this.checkerItems.filter(i => i['Gudang Tujuan/Dari'] === this.checkerForm.cabang && i['No. Pemindahan #'] === this.checkerForm.noIt);
@@ -352,9 +287,7 @@
                         const result = await res.json();
                         if (result.status === 'success') {
                             this.checkerItems = result.data.map(item => ({ 
-                                ...item, 
-                                'Fisik': 0,
-                                'editMode': false 
+                                ...item, 'Fisik': 0, 'editMode': false, 'highlight': false 
                             }));
                         } else { alert(result.message); }
                     } catch (e) { alert('Gagal menarik Master Data Barcode.'); } 
@@ -363,7 +296,6 @@
                         setTimeout(() => { if(this.$refs.scanInput) this.$refs.scanInput.focus(); }, 100);
                     }
                 },
-                
                 playSound(type) {
                     const ctx = new (window.AudioContext || window.webkitAudioContext)();
                     const osc = ctx.createOscillator();
@@ -375,15 +307,12 @@
                     gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.3);
                     osc.stop(ctx.currentTime + 0.3);
                 },
-
                 handleScan() {
                     if(!this.checkerForm.cabang || !this.checkerForm.noIt) {
                         this.playSound('error');
                         alert("⚠️ PILIH GUDANG & NO. PEMINDAHAN TERLEBIH DAHULU!");
-                        this.currentScan = '';
-                        return;
+                        this.currentScan = ''; return;
                     }
-
                     const scanStr = this.currentScan.trim().toLowerCase();
                     if (!scanStr) return;
                     
@@ -394,18 +323,23 @@
 
                     if (foundItem) {
                         foundItem['Fisik'] += this.currentScanQty;
+                        
+                        // Memicu animasi highlight css
+                        foundItem.highlight = false; 
+                        this.$nextTick(() => {
+                            foundItem.highlight = true;
+                            setTimeout(() => foundItem.highlight = false, 1500);
+                        });
+
                         if (foundItem['Fisik'] > (foundItem['Kuantitas'] || 0)) { this.playSound('error'); } 
                         else { this.playSound('success'); }
                     } else {
                         this.playSound('error');
-                        alert(`❌ BARANG TIDAK DITEMUKAN PADA RUTE INI!\n\nBarcode/Nama "${this.currentScan}" tidak ada dalam daftar untuk Gudang dan No IT yang Anda pilih saat ini.`);
+                        alert(`❌ BARANG TIDAK DITEMUKAN!\n\nBarcode/Nama "${this.currentScan}" tidak ada dalam daftar.`);
                     }
-
-                    this.currentScan = '';
-                    this.currentScanQty = 1;
+                    this.currentScan = ''; this.currentScanQty = 1;
                     this.$nextTick(() => { this.$refs.scanInput.focus(); });
                 },
-
                 getRowColor(item) {
                     const qty = item['Kuantitas'] || 0;
                     const fisik = item['Fisik'];
@@ -413,6 +347,39 @@
                     if (fisik > qty) return 'row-red'; 
                     if (fisik === qty) return 'row-green'; 
                     return 'row-yellow'; 
+                },
+                async saveCheckerData() {
+                    if(!this.checkerForm.pic || !this.checkerForm.cabang || !this.checkerForm.noIt) {
+                        alert("Harap lengkapi Gudang Tujuan, No Pemindahan, dan PIC sebelum menyimpan.");
+                        return;
+                    }
+
+                    const dataToSave = this.checkerItems
+                        .filter(i => i['Gudang Tujuan/Dari'] === this.checkerForm.cabang && i['No. Pemindahan #'] === this.checkerForm.noIt)
+                        .map(i => ({
+                            kategori: i['Kategori'], kode_barang: i['Kode Barang'], nama_barang: i['Nama Barang'],
+                            target: i['Kuantitas'] || 0, fisik: i['Fisik'], selisih: i['Fisik'] - (i['Kuantitas'] || 0)
+                        }));
+
+                    if (dataToSave.length === 0) return;
+
+                    this.loading = true;
+                    try {
+                        await fetch(this.apiUrl, {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                pic: this.checkerForm.pic,
+                                cabang: this.checkerForm.cabang,
+                                no_it: this.checkerForm.noIt,
+                                checker_data: dataToSave
+                            }),
+                            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                        });
+                        alert("✅ Hasil Checker berhasil diamankan ke Server!");
+                    } catch(e) {
+                        alert("❌ Gagal menyimpan data: " + e.message);
+                    }
+                    this.loading = false;
                 }
             }
         }).mount('#app');
