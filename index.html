@@ -8,11 +8,11 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-        .checker-table th { background-color: #f1f5f9; color: #334155; padding: 12px; border: 2px solid #cbd5e1; text-align: left; position: sticky; top: 0; z-index: 10; font-weight: 900;}
-        .checker-table td { padding: 10px; border: 2px solid #e2e8f0; font-weight: 600; }
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        .checker-table th { background-color: #f8fafc; color: #475569; padding: 14px 12px; border: 1px solid #cbd5e1; text-align: left; position: sticky; top: 0; z-index: 10; font-weight: 900; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em;}
+        .checker-table td { padding: 12px; border: 1px solid #e2e8f0; font-weight: 600; color: #1e293b; }
         .row-green { background-color: #f0fdf4; }
         .row-yellow { background-color: #fefce8; }
         .row-red { background-color: #fef2f2; color: #7f1d1d; }
@@ -26,73 +26,74 @@
         }
     </style>
 </head>
-<body class="text-gray-900">
-    <div id="app" class="mx-auto min-h-screen w-full max-w-7xl bg-white shadow-2xl flex flex-col relative">
+<body class="text-gray-800">
+    <!-- Ukuran diubah menjadi max-w-6xl agar proporsi form dan tabel tidak terlalu melar ke samping -->
+    <div id="app" class="mx-auto min-h-screen w-full max-w-6xl bg-white shadow-2xl flex flex-col relative">
         
         <!-- HEADER APP -->
-        <div class="bg-blue-800 text-white p-4 shadow-md flex items-center justify-between">
-            <div class="flex items-center gap-4">
-                <a href="https://byteandbay.github.io/picker-webapp/" class="bg-blue-900 px-4 py-2 rounded font-bold hover:bg-blue-700 transition border border-blue-600 shadow-inner text-sm inline-block no-underline">
-                    ⬅ Buka Portal Picker
+        <div class="bg-blue-800 text-white p-5 shadow-md flex items-center justify-between z-20 relative">
+            <div class="flex items-center gap-5">
+                <a href="https://byteandbay.github.io/picker-webapp/" class="bg-blue-900 px-4 py-2 rounded-lg font-bold hover:bg-blue-700 transition border border-blue-600 shadow-inner text-sm inline-flex items-center gap-2 no-underline">
+                    <span>⬅</span> Buka Portal Picker
                 </a>
                 <h2 class="font-black text-2xl tracking-wide">PORTAL CHECKER VAPEBOSS</h2>
             </div>
             <div class="flex items-center gap-3">
                 <button @click="isCheckerLocked = !isCheckerLocked" 
-                        class="w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all shadow-md"
-                        :class="isCheckerLocked ? 'bg-emerald-500 hover:bg-emerald-400' : 'bg-slate-300/30 hover:bg-slate-300/50 border-2 border-slate-300 border-dashed'"
-                        :title="isCheckerLocked ? 'Buka Kunci Info' : 'Kunci Info'">
+                        class="w-12 h-12 rounded-full flex items-center justify-center text-xl transition-all shadow-sm"
+                        :class="isCheckerLocked ? 'bg-emerald-500 hover:bg-emerald-400 text-white' : 'bg-slate-800 hover:bg-slate-700 border-2 border-slate-600 text-slate-300'"
+                        :title="isCheckerLocked ? 'Buka Kunci Informasi' : 'Kunci Informasi'">
                     <span v-if="isCheckerLocked">🛡️</span>
-                    <span v-else class="opacity-50">🔓</span>
+                    <span v-else>🔓</span>
                 </button>
-                <button @click="fetchCheckerData" class="bg-emerald-500 px-5 py-2.5 rounded font-black hover:bg-emerald-400 text-slate-900 flex items-center gap-2 shadow-md transition-transform active:scale-95">
-                    <span>🔄 Tarik Master Data Barcode</span>
+                <button @click="fetchCheckerData" class="bg-emerald-500 px-6 py-2.5 rounded-lg font-black hover:bg-emerald-400 text-slate-900 flex items-center gap-2 shadow-md transition-transform active:scale-95">
+                    <span>🔄</span> Tarik Data Barcode
                 </button>
             </div>
         </div>
 
         <!-- HEADER ADMINISTRATIF -->
-        <div class="p-6 border-b border-gray-200 bg-gray-50 grid grid-cols-3 gap-6">
+        <div class="p-8 border-b border-gray-200 bg-slate-50 grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
             <div class="flex flex-col relative">
-                <label class="text-xs font-bold text-gray-500 mb-1">Gudang Tujuan/Dari</label>
+                <label class="text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Gudang Tujuan / Dari</label>
                 <div class="relative">
-                    <input ref="gudangInput" type="text" v-model="checkerForm.cabang" :disabled="isCheckerLocked" autocomplete="off" @focus="showGudangList = true; $event.target.select()" @blur="setTimeout(() => showGudangList = false, 200)" placeholder="KETIK / PILIH GUDANG..." class="w-full border-2 border-gray-300 p-3 pr-10 rounded font-bold focus:border-blue-500 outline-none uppercase disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed">
-                    <button v-if="checkerForm.cabang && !isCheckerLocked" @mousedown.prevent="checkerForm.cabang = ''; checkerForm.noIt = ''; showGudangList = true; $nextTick(() =>$refs.gudangInput.focus())" class="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-700 font-black text-xl z-10">✖</button>
+                    <input ref="gudangInput" type="text" v-model="checkerForm.cabang" :disabled="isCheckerLocked" autocomplete="off" @focus="showGudangList = true; $event.target.select()" @blur="setTimeout(() => showGudangList = false, 200)" placeholder="Ketik atau pilih gudang..." class="w-full border-2 border-slate-300 p-3 pr-10 rounded-lg font-bold focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none uppercase disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed transition-all">
+                    <button v-if="checkerForm.cabang && !isCheckerLocked" @mousedown.prevent="checkerForm.cabang = ''; checkerForm.noIt = ''; showGudangList = true; $nextTick(() =>$refs.gudangInput.focus())" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 font-black text-xl z-10 transition-colors">✕</button>
                 </div>
-                <div v-if="showGudangList && !isCheckerLocked" class="absolute top-[100%] left-0 right-0 bg-white border-2 border-blue-400 mt-1 rounded shadow-xl z-50 max-h-60 overflow-y-auto">
-                    <div v-for="gudang in dynamicGudangList.filter(g => g.toLowerCase().includes(checkerForm.cabang.toLowerCase()))" :key="gudang" @mousedown.prevent="checkerForm.cabang = gudang; checkerForm.noIt = ''; showGudangList = false" class="p-3 border-b border-gray-100 hover:bg-blue-100 cursor-pointer font-bold text-sm uppercase">{{ gudang }}</div>
+                <div v-if="showGudangList && !isCheckerLocked" class="absolute top-[100%] left-0 right-0 bg-white border border-slate-200 mt-2 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
+                    <div v-for="gudang in dynamicGudangList.filter(g => g.toLowerCase().includes(checkerForm.cabang.toLowerCase()))" :key="gudang" @mousedown.prevent="checkerForm.cabang = gudang; checkerForm.noIt = ''; showGudangList = false" class="p-3 border-b border-slate-50 hover:bg-blue-50 cursor-pointer font-bold text-sm uppercase text-slate-700">{{ gudang }}</div>
                 </div>
             </div>
 
             <div class="flex flex-col relative">
-                <label class="text-xs font-bold text-gray-500 mb-1">No. Pemindahan #</label>
+                <label class="text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">No. Pemindahan</label>
                 <div class="relative">
-                    <input ref="noItInput" type="text" v-model="checkerForm.noIt" :disabled="isCheckerLocked || !checkerForm.cabang" autocomplete="off" @focus="showNoItList = true; $event.target.select()" @blur="setTimeout(() => showNoItList = false, 200)" placeholder="KETIK / PILIH NO..." class="w-full border-2 border-gray-300 p-3 pr-10 rounded font-bold focus:border-blue-500 outline-none uppercase disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed">
-                    <button v-if="checkerForm.noIt && !isCheckerLocked" @mousedown.prevent="checkerForm.noIt = ''; showNoItList = true; $nextTick(() =>$refs.noItInput.focus())" class="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-700 font-black text-xl z-10">✖</button>
+                    <input ref="noItInput" type="text" v-model="checkerForm.noIt" :disabled="isCheckerLocked || !checkerForm.cabang" autocomplete="off" @focus="showNoItList = true; $event.target.select()" @blur="setTimeout(() => showNoItList = false, 200)" placeholder="Ketik atau pilih nomor..." class="w-full border-2 border-slate-300 p-3 pr-10 rounded-lg font-bold focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none uppercase disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed transition-all">
+                    <button v-if="checkerForm.noIt && !isCheckerLocked" @mousedown.prevent="checkerForm.noIt = ''; showNoItList = true; $nextTick(() =>$refs.noItInput.focus())" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 font-black text-xl z-10 transition-colors">✕</button>
                 </div>
-                <div v-if="showNoItList && !isCheckerLocked" class="absolute top-[100%] left-0 right-0 bg-white border-2 border-blue-400 mt-1 rounded shadow-xl z-50 max-h-60 overflow-y-auto">
-                    <div v-for="no in dynamicNoItList.filter(n => n.toLowerCase().includes(checkerForm.noIt.toLowerCase()))" :key="no" @mousedown.prevent="checkerForm.noIt = no; showNoItList = false" class="p-3 border-b border-gray-100 hover:bg-blue-100 cursor-pointer font-bold text-sm uppercase">{{ no }}</div>
+                <div v-if="showNoItList && !isCheckerLocked" class="absolute top-[100%] left-0 right-0 bg-white border border-slate-200 mt-2 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
+                    <div v-for="no in dynamicNoItList.filter(n => n.toLowerCase().includes(checkerForm.noIt.toLowerCase()))" :key="no" @mousedown.prevent="checkerForm.noIt = no; showNoItList = false" class="p-3 border-b border-slate-50 hover:bg-blue-50 cursor-pointer font-bold text-sm uppercase text-slate-700">{{ no }}</div>
                 </div>
             </div>
 
             <div class="flex flex-col">
-                <label class="text-xs font-bold text-gray-500 mb-1">PIC Checker</label>
-                <input type="text" v-model="checkerForm.pic" :disabled="isCheckerLocked" placeholder="NAMA ANDA..." class="border-2 border-gray-300 p-3 rounded font-bold focus:border-blue-500 outline-none uppercase disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed">
+                <label class="text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">PIC Checker</label>
+                <input type="text" v-model="checkerForm.pic" :disabled="isCheckerLocked" placeholder="Masukkan nama Anda..." class="border-2 border-slate-300 p-3 rounded-lg font-bold focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none uppercase disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed transition-all">
             </div>
             
             <div class="flex flex-col">
-                <label class="text-xs font-bold text-gray-500 mb-1">Filter Kategori</label>
-                <select v-model="checkerFilter.kategori" class="border-2 border-gray-300 p-3 rounded font-bold focus:border-blue-500 outline-none">
+                <label class="text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Filter Kategori</label>
+                <select v-model="checkerFilter.kategori" class="border-2 border-slate-300 p-3 rounded-lg font-bold text-slate-700 focus:border-blue-500 outline-none cursor-pointer">
                     <option value="Semua Kategori">Semua Kategori</option>
                     <option v-for="cat in checkerCategories" :key="cat" :value="cat">{{ cat }}</option>
                 </select>
             </div>
 
             <div class="flex flex-col">
-                <label class="text-xs font-bold text-gray-500 mb-1">Filter Status</label>
-                <select v-model="checkerFilter.status" class="border-2 border-gray-300 p-3 rounded font-bold focus:border-blue-500 outline-none">
+                <label class="text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Filter Status</label>
+                <select v-model="checkerFilter.status" class="border-2 border-slate-300 p-3 rounded-lg font-bold text-slate-700 focus:border-blue-500 outline-none cursor-pointer">
                     <option value="Semua">Semua Item</option>
-                    <option value="Kurang">Belum/Kurang (Kuning)</option>
+                    <option value="Kurang">Belum atau Kurang (Kuning)</option>
                     <option value="Pas">Pas (Hijau)</option>
                     <option value="Berlebih">Berlebih (Merah)</option>
                 </select>
@@ -100,118 +101,124 @@
         </div>
 
         <!-- AREA SCAN BARCODE & INFO -->
-        <div class="p-6 bg-[#eaf3fc] border-b border-blue-200 grid grid-cols-[3fr_1fr] gap-6 items-start">
+        <div class="p-8 bg-blue-50 border-b border-blue-100 grid grid-cols-1 lg:grid-cols-[2.5fr_1fr] gap-8 items-start relative z-0">
             <div class="flex flex-col relative gap-3">
-                <label class="text-sm font-black text-slate-800 flex items-center gap-2">
-                    <span>🔍 Scan Barcode / Ketik Item Name</span>
+                <label class="text-sm font-black text-blue-900 flex items-center gap-2">
+                    <span>🔍 Pindai Barcode / Ketik Nama Barang</span>
                     <span class="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded animate-pulse">AUTOFOCUS ON</span>
                 </label>
                 
-                <!-- LANGKAH 1: KETIK / SCAN DENGAN CUSTOM AUTOCOMPLETE -->
                 <div class="relative w-full">
                     <input ref="scanInput" type="text" v-model="currentScan" @keyup.enter="moveToQty" 
                            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-                           placeholder="Tembakkan Scanner / Ketik Sebagian Nama..." 
-                           class="w-full border-4 border-blue-400 p-4 rounded-lg font-black text-xl text-slate-800 focus:border-blue-600 outline-none shadow-inner bg-white">
+                           placeholder="Pindai barcode atau ketik nama barang di sini..." 
+                           class="w-full border-2 border-blue-300 p-4 rounded-xl font-black text-xl text-blue-900 focus:border-blue-600 focus:ring-4 focus:ring-blue-500/20 outline-none shadow-sm bg-white transition-all">
                     
-                    <!-- CUSTOM DROPDOWN SUGGESTIONS (Hanya muncul jika diketik dan belum exact match) -->
                     <div v-if="customSuggestionsList.length > 0" 
-                         class="absolute top-[100%] left-0 right-0 bg-white border-4 border-blue-400 mt-1 rounded-lg shadow-2xl z-50 max-h-64 overflow-y-auto">
+                         class="absolute top-[100%] left-0 right-0 bg-white border border-blue-200 mt-2 rounded-xl shadow-2xl z-50 max-h-64 overflow-y-auto">
                         <div v-for="sug in customSuggestionsList" :key="sug" 
                              @mousedown.prevent="selectCustomSuggestion(sug)"
-                             class="p-4 border-b border-gray-100 hover:bg-blue-100 cursor-pointer font-bold text-sm text-slate-800 transition-colors">
+                             class="p-4 border-b border-slate-50 hover:bg-blue-50 cursor-pointer font-bold text-sm text-slate-700 transition-colors">
                             {{ sug }}
                         </div>
                     </div>
                 </div>
                 
-                <!-- KOTAK INFO REAL-TIME: Otomatis mendeteksi tanpa tekan Enter -->
-                <input type="text" disabled :value="liveScannedName" placeholder="nama sesuai barcode / barcode sesuai nama" class="border-4 border-blue-300 p-4 rounded-lg font-bold text-base text-gray-500 outline-none bg-blue-50">
+                <input type="text" disabled :value="liveScannedName" placeholder="Nama dan kode barang akan muncul di sini..." class="border-2 border-blue-200/60 p-4 rounded-xl font-bold text-base text-slate-500 outline-none bg-blue-100/50">
             </div>
             
             <div class="flex flex-col gap-3">
-                <label class="text-sm font-black text-slate-800">Kuantitas Ketik (Default 1)</label>
+                <label class="text-sm font-black text-blue-900">Input Kuantitas (Default: 1)</label>
                 
-                <!-- LANGKAH 2: INPUT QTY -->
-                <input ref="qtyInput" type="number" min="1" v-model.number="currentScanQty" @keyup.enter="submitScan" class="border-4 border-blue-400 p-4 rounded-lg font-black text-xl text-center text-slate-800 focus:border-blue-600 outline-none bg-white">
+                <input ref="qtyInput" type="number" min="1" v-model.number="currentScanQty" @keyup.enter="submitScan" class="border-2 border-blue-300 p-4 rounded-xl font-black text-xl text-center text-blue-900 focus:border-blue-600 focus:ring-4 focus:ring-blue-500/20 outline-none bg-white shadow-sm transition-all">
                 
-                <!-- KOTAK INFO TARGET REAL-TIME -->
-                <input type="text" disabled :value="liveScannedTarget" placeholder="jumlah target/selisih" class="border-4 border-blue-300 p-4 rounded-lg font-bold text-base text-center text-gray-500 outline-none bg-blue-50">
+                <input type="text" disabled :value="liveScannedTarget" placeholder="Target dan selisih akan muncul di sini..." class="border-2 border-blue-200/60 p-4 rounded-xl font-bold text-base text-center text-slate-500 outline-none bg-blue-100/50">
             </div>
         </div>
 
-        <div v-if="loading" class="flex flex-col items-center justify-center p-20 flex-1">
-            <div class="animate-spin w-16 h-16 border-8 border-blue-500 border-t-transparent rounded-full mb-4"></div>
-            <p class="font-bold text-blue-900 text-xl">Menyinkronkan Database Barcode...</p>
+        <div v-if="loading" class="flex flex-col items-center justify-center p-20 flex-1 bg-white">
+            <div class="animate-spin w-16 h-16 border-8 border-blue-500 border-t-transparent rounded-full mb-6 shadow-sm"></div>
+            <p class="font-bold text-blue-900 text-lg">Menyinkronkan database barcode...</p>
         </div>
 
         <!-- AREA TABEL CHECKER -->
-        <div v-if="!loading" class="flex-1 overflow-auto p-6 bg-white">
+        <div v-if="!loading" class="flex-1 overflow-auto p-8 bg-white">
             <table class="w-full checker-table border-collapse">
                 <thead>
                     <tr>
                         <th class="w-1/6">Kategori</th>
                         <th class="w-1/6">Kode Barang</th>
                         <th class="w-2/6">Nama Barang</th>
-                        <th class="w-1/12 text-center bg-slate-200">Target / Sisa</th>
-                        <th class="w-1/12 text-center bg-yellow-100">Fisik</th>
-                        <th class="w-1/12 text-center">Selisih</th>
+                        <!-- UBAHAN KOLOM TARGET: Hanya menampilkan Kuantitas Asli -->
+                        <th class="w-1/12 text-center bg-blue-50">Target</th>
+                        <th class="w-1/12 text-center bg-amber-50">Fisik</th>
+                        <th class="w-1/12 text-center bg-slate-50">Selisih</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="item in sortedCheckerItems" :key="item['Kode Barang']" :class="[getRowColor(item), item.highlight ? 'highlight-scan' : '']">
-                        <td>{{ item['Kategori'] }}</td>
-                        <td class="font-mono text-sm">{{ item['Kode Barang'] }}</td>
-                        <td>{{ item['Nama Barang'] }}</td>
-                        <td class="text-center text-xl font-black bg-white/40"><span :class="(item['Kuantitas'] || 0) - item['Fisik'] < 0 ? 'text-red-600' : 'text-slate-800'">{{ (item['Kuantitas'] || 0) - item['Fisik'] }}</span></td>
+                    <tr v-for="item in sortedCheckerItems" :key="item['Kode Barang']" :class="[getRowColor(item), item.highlight ? 'highlight-scan' : '']" class="transition-colors duration-300">
+                        <td class="text-sm">{{ item['Kategori'] }}</td>
+                        <td class="font-mono text-xs text-slate-500">{{ item['Kode Barang'] }}</td>
+                        <td class="text-sm leading-snug">{{ item['Nama Barang'] }}</td>
+                        
+                        <!-- DATA TARGET MURNI -->
+                        <td class="text-center text-xl font-black bg-white/40"><span class="text-slate-800">{{ item['Kuantitas'] || 0 }}</span></td>
+                        
+                        <!-- KOLOM FISIK -->
                         <td class="text-center bg-white/60">
-                            <div v-if="!item.editMode" @click="item.editMode = true" class="text-xl font-black cursor-pointer hover:bg-yellow-200 py-1 rounded transition" title="Klik untuk edit fisik">{{ item['Fisik'] }} ✏️</div>
+                            <div v-if="!item.editMode" @click="item.editMode = true" class="text-xl font-black cursor-pointer hover:bg-yellow-200 py-1.5 rounded transition" title="Klik untuk mengedit data fisik">{{ item['Fisik'] }} ✏️</div>
                             <div v-else class="flex items-center justify-center gap-1">
-                                <button @click="item['Fisik'] > 0 ? item['Fisik']-- : null" class="bg-red-400 text-white w-8 h-8 rounded font-black">-</button>
+                                <button @click="item['Fisik'] > 0 ? item['Fisik']-- : null" class="bg-red-400 text-white w-8 h-8 rounded shadow-sm font-black active:scale-95 transition-transform">-</button>
                                 <span class="text-lg font-black px-2">{{ item['Fisik'] }}</span>
-                                <button @click="item['Fisik']++" class="bg-emerald-500 text-white w-8 h-8 rounded font-black">+</button>
-                                <button @click="item.editMode = false" class="bg-slate-800 text-white px-3 py-1.5 rounded text-xs ml-1 font-bold">OK</button>
+                                <button @click="item['Fisik']++" class="bg-emerald-500 text-white w-8 h-8 rounded shadow-sm font-black active:scale-95 transition-transform">+</button>
+                                <button @click="item.editMode = false" class="bg-slate-800 text-white px-3 py-1.5 rounded text-xs ml-1 font-bold shadow-sm active:scale-95 transition-transform">OK</button>
                             </div>
                         </td>
+                        
+                        <!-- KOLOM SELISIH -->
                         <td class="text-center text-xl font-black bg-white/40">
-                            <span :class="item['Fisik'] - (item['Kuantitas'] || 0) < 0 ? 'text-red-600' : (item['Fisik'] - (item['Kuantitas'] || 0) > 0 ? 'text-purple-700' : 'text-emerald-700')">{{ item['Fisik'] - (item['Kuantitas'] || 0) }}</span>
+                            <span :class="item['Fisik'] - (item['Kuantitas'] || 0) < 0 ? 'text-red-600' : (item['Fisik'] - (item['Kuantitas'] || 0) > 0 ? 'text-purple-700' : 'text-emerald-600')">{{ item['Fisik'] - (item['Kuantitas'] || 0) }}</span>
                         </td>
                     </tr>
                 </tbody>
             </table>
             
-            <div v-if="sortedCheckerItems.length === 0" class="text-center p-20 text-gray-400 font-bold border-4 border-dashed border-gray-200 mt-4 rounded-xl">
-                <p class="text-2xl mb-2">Pilih <b>Gudang Tujuan/Dari</b> dan <b>No. Pemindahan</b> di atas.</p>
-                <p class="text-base text-gray-400">Tabel otomatis akan menampilkan rute yang sesuai.</p>
+            <div v-if="sortedCheckerItems.length === 0" class="text-center p-16 text-slate-400 font-medium border-2 border-dashed border-slate-200 mt-6 rounded-2xl bg-slate-50">
+                <p class="text-xl mb-2 font-bold text-slate-600">Silakan pilih Gudang Tujuan dan No. Pemindahan di atas.</p>
+                <p class="text-sm">Tabel akan secara otomatis menampilkan daftar barang yang sesuai.</p>
             </div>
         </div>
         
         <!-- FOOTER: TOMBOL REKAP & SIMPAN -->
-        <div v-if="!loading" class="bg-gray-100 p-6 border-t-4 border-gray-300 flex justify-between items-center shadow-[0_-10px_20px_rgba(0,0,0,0.05)] relative z-20">
-            <button @click="showRekapModal = true" class="bg-amber-500 text-white px-6 py-4 rounded-xl font-black shadow-lg hover:bg-amber-400 transition-all text-lg">📊 LIHAT REKAP SELISIH</button>
-            <button @click="saveCheckerData" class="bg-blue-800 text-white px-10 py-4 rounded-xl font-black shadow-lg hover:bg-blue-700 transition-all text-lg">💾 SIMPAN HASIL CHECKER</button>
+        <div v-if="!loading" class="bg-white p-6 border-t border-slate-200 flex justify-between items-center shadow-[0_-10px_30px_rgba(0,0,0,0.05)] relative z-20">
+            <button @click="showRekapModal = true" class="bg-amber-500 text-white px-8 py-3.5 rounded-xl font-black shadow-md hover:bg-amber-400 hover:shadow-lg transition-all active:scale-95 text-base flex items-center gap-2">
+                <span>📊</span> Lihat Rekap Selisih
+            </button>
+            <button @click="saveCheckerData" class="bg-blue-800 text-white px-10 py-3.5 rounded-xl font-black shadow-md hover:bg-blue-700 hover:shadow-lg transition-all active:scale-95 text-base flex items-center gap-2">
+                <span>💾</span> Simpan Hasil Checker
+            </button>
         </div>
 
         <!-- MODAL POPUP REKAP SELISIH -->
-        <div v-if="showRekapModal" class="fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center p-6">
+        <div v-if="showRekapModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-6 transition-opacity">
             <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] relative z-[10000]">
-                <div class="bg-slate-900 text-white p-5 flex justify-between items-center">
-                    <h3 class="font-black text-xl tracking-widest">REKAP ITEM SELISIH</h3>
-                    <button @click="showRekapModal = false" class="text-red-400 font-black text-2xl hover:text-white transition">✕</button>
+                <div class="bg-slate-800 text-white p-6 flex justify-between items-center">
+                    <h3 class="font-black text-lg uppercase tracking-widest">Rekap Barang Berselisih</h3>
+                    <button @click="showRekapModal = false" class="text-slate-400 hover:text-white font-black text-2xl transition-colors">✕</button>
                 </div>
-                <div class="p-6 overflow-y-auto flex-1 bg-gray-50">
-                    <table class="w-full checker-table border-collapse bg-white">
+                <div class="p-8 overflow-y-auto flex-1 bg-slate-50">
+                    <table class="w-full checker-table border-collapse bg-white shadow-sm rounded-lg overflow-hidden">
                         <thead>
                             <tr>
                                 <th>Nama Barang</th>
                                 <th class="text-center bg-slate-100">Target</th>
-                                <th class="text-center bg-yellow-100">Fisik</th>
+                                <th class="text-center bg-yellow-50">Fisik</th>
                                 <th class="text-center bg-red-50">Status Selisih</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="item in rekapSelisihList" :key="item['Kode Barang']" class="hover:bg-gray-50">
-                                <td class="font-bold">{{ item['Nama Barang'] }}</td>
+                            <tr v-for="item in rekapSelisihList" :key="item['Kode Barang']" class="hover:bg-slate-50 transition-colors">
+                                <td class="font-bold text-slate-800 text-sm">{{ item['Nama Barang'] }}</td>
                                 <td class="text-center font-black text-xl text-slate-800">{{ item['Kuantitas'] || 0 }}</td>
                                 <td class="text-center font-black text-xl text-yellow-700">{{ item['Fisik'] }}</td>
                                 <td class="text-center font-black text-xl" :class="item['Fisik'] - (item['Kuantitas'] || 0) < 0 ? 'text-red-600' : 'text-purple-700'">
@@ -220,12 +227,14 @@
                             </tr>
                         </tbody>
                     </table>
-                    <div v-if="rekapSelisihList.length === 0" class="text-center py-12 text-emerald-600 font-black text-2xl border-4 border-dashed border-emerald-200 mt-4 rounded-xl bg-emerald-50">
-                        ✅ LUAR BIASA! TIDAK ADA SELISIH (SEMUA PAS).
+                    <div v-if="rekapSelisihList.length === 0" class="text-center py-16 text-emerald-600 border-2 border-dashed border-emerald-200 mt-6 rounded-2xl bg-emerald-50/50">
+                        <span class="text-4xl block mb-3">✅</span>
+                        <p class="font-black text-xl uppercase tracking-wide">Luar Biasa!</p>
+                        <p class="font-medium mt-1">Tidak ada selisih, semua data fisik pas dengan target.</p>
                     </div>
                 </div>
-                <div class="bg-gray-200 p-5 text-right border-t border-gray-300">
-                    <button @click="showRekapModal = false" class="bg-slate-800 text-white px-8 py-3 rounded-lg font-black hover:bg-slate-700 transition">TUTUP KEMBALI</button>
+                <div class="bg-white p-6 text-right border-t border-slate-100">
+                    <button @click="showRekapModal = false" class="bg-slate-800 text-white px-8 py-3 rounded-xl font-bold hover:bg-slate-700 transition-colors shadow-sm active:scale-95">Tutup Jendela</button>
                 </div>
             </div>
         </div>
@@ -309,13 +318,11 @@
                     if (!this.currentScan || this.currentScan.trim() === '') return [];
                     const query = this.currentScan.toLowerCase();
                     
-                    // Jika teks persis sama dengan Nama Barang atau Barcode, matikan dropdown
                     const exactMatch = this.itemSuggestionsList.some(name => name.toLowerCase() === query);
                     const exactBarcode = this.sortedCheckerItems.some(i => i['Kode Barang'] && i['Kode Barang'].toString().toLowerCase() === query);
                     
                     if (exactMatch || exactBarcode) return []; 
 
-                    // Tampilkan saran yang cocok (dibatasi 20 agar UI ringan)
                     return this.itemSuggestionsList
                         .filter(name => name.toLowerCase().includes(query))
                         .slice(0, 20);
@@ -341,7 +348,7 @@
                         let qtyTarget = this.foundItemLive['Kuantitas'] || 0;
                         let selisih = this.foundItemLive['Fisik'] - qtyTarget;
                         let selisihStr = selisih > 0 ? `+${selisih}` : selisih;
-                        return `Target: ${qtyTarget} | Selisih: ${selisihStr}`;
+                        return `Target: ${qtyTarget}  |  Selisih: ${selisihStr}`;
                     }
                     return '';
                 }
@@ -378,7 +385,6 @@
                 // METHOD KETIKA ITEM DARI DROPDOWN DIKLIK
                 selectCustomSuggestion(name) {
                     this.currentScan = name;
-                    // Tunggu state Vue terupdate, lalu paksa lanjut ke kuantitas
                     this.$nextTick(() => {
                         this.moveToQty();
                     });
@@ -388,44 +394,39 @@
                 moveToQty() {
                     if(!this.checkerForm.cabang || !this.checkerForm.noIt) {
                         this.playSound('error');
-                        alert("⚠️ PILIH GUDANG & NO. PEMINDAHAN TERLEBIH DAHULU!");
+                        alert("⚠️ Harap lengkapi Gudang Tujuan dan No. Pemindahan terlebih dahulu.");
                         this.currentScan = ''; return;
                     }
                     if (!this.currentScan) return;
 
                     if (this.foundItemLive) {
-                        // Jika Barang Valid: Pindah ke kolom QTY dan blok angka 1
                         this.$nextTick(() => {
                             this.$refs.qtyInput.focus();
-                            this.$refs.qtyInput.select(); // Kursor memblok angka 1, siap ditimpa
+                            this.$refs.qtyInput.select();
                         });
                     } else {
-                        // Jika Barang TIDAK ADA di List: Munculkan Peringatan dan Kosongkan
                         this.playSound('error');
-                        alert(`❌ BARANG TIDAK DITEMUKAN PADA RUTE INI!\n\nPastikan Barcode/Nama "${this.currentScan}" terdaftar untuk gudang dan No. Pemindahan ini.`);
-                        this.currentScan = ''; // Reset input agar tim bisa mengulang
+                        alert(`❌ BARANG TIDAK DITEMUKAN!\n\nPastikan barcode atau nama barang "${this.currentScan}" terdaftar pada rute yang dipilih.`);
+                        this.currentScan = ''; 
                     }
                 },
 
                 // METHOD KETIKA ENTER DITEKAN DI KOLOM QTY
                 submitScan() {
-                    if (!this.foundItemLive) return; // Pengaman logika
+                    if (!this.foundItemLive) return; 
 
                     const item = this.foundItemLive;
                     item['Fisik'] += this.currentScanQty;
                     
-                    // Efek Visual Row Menyala
                     item.highlight = false; 
                     this.$nextTick(() => {
                         item.highlight = true;
                         setTimeout(() => item.highlight = false, 1500);
                     });
 
-                    // Cek Selisih untuk Audio Feedback
                     if (item['Fisik'] > (item['Kuantitas'] || 0)) { this.playSound('error'); } 
                     else { this.playSound('success'); }
                     
-                    // Reset semuanya & kembalikan fokus ke kolom Scan
                     this.currentScan = ''; 
                     this.currentScanQty = 1;
                     this.$nextTick(() => { this.$refs.scanInput.focus(); });
@@ -441,7 +442,7 @@
                 },
                 async saveCheckerData() {
                     if(!this.checkerForm.pic || !this.checkerForm.cabang || !this.checkerForm.noIt) {
-                        alert("Harap lengkapi Gudang Tujuan, No Pemindahan, dan PIC sebelum menyimpan.");
+                        alert("Harap lengkapi isian Gudang Tujuan, No. Pemindahan, dan PIC Checker sebelum menyimpan data.");
                         return;
                     }
 
@@ -466,7 +467,7 @@
                             }),
                             headers: { 'Content-Type': 'text/plain;charset=utf-8' }
                         });
-                        alert("✅ Hasil Checker berhasil diamankan ke Server!");
+                        alert("✅ Hasil Checker berhasil disimpan dengan aman ke Server!");
                     } catch(e) {
                         alert("❌ Gagal menyimpan data: " + e.message);
                     }
@@ -477,3 +478,4 @@
     </script>
 </body>
 </html>
+```<br><br><br><br><ElicitationsGroup>
