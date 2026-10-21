@@ -25,7 +25,7 @@
         <!-- HEADER APP -->
         <div class="bg-blue-800 text-white p-4 shadow-md flex items-center justify-between">
             <div class="flex items-center gap-4">
-                <!-- TOMBOL KEMBALI KE PICKER (Ganti URL-nya nanti) -->
+                <!-- TOMBOL KEMBALI KE PICKER -->
                 <a href="https://byteandbay.github.io/picker-webapp/" class="bg-blue-900 px-4 py-2 rounded font-bold hover:bg-blue-700 transition border border-blue-600 shadow-inner text-sm inline-block no-underline">
                     ⬅ Buka Portal Picker
                 </a>
@@ -53,17 +53,17 @@
             <div class="flex flex-col relative">
                 <label class="text-xs font-bold text-gray-500 mb-1">Gudang Tujuan/Dari</label>
                 <div class="relative">
-                    <input ref="gudangInput" type="text" v-model="checkerForm.cabang" :disabled="isCheckerLocked" 
+                    <input ref="gudangInput" type="text" v-model="checkerForm.cabang" :disabled="isCheckerLocked" autocomplete="off"
                            @focus="showGudangList = true; $event.target.select()"
                            @blur="setTimeout(() => showGudangList = false, 200)"
                            placeholder="Ketik / Pilih Gudang..." 
                            class="w-full border-2 border-gray-300 p-3 pr-10 rounded font-bold focus:border-blue-500 outline-none uppercase disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed">
-                    <button v-if="checkerForm.cabang && !isCheckerLocked" @click="checkerForm.cabang = ''; checkerForm.noIt = ''; showGudangList = true; $nextTick(() =>$refs.gudangInput.focus())" 
+                    <button v-if="checkerForm.cabang && !isCheckerLocked" @mousedown.prevent="checkerForm.cabang = ''; checkerForm.noIt = ''; showGudangList = true; $nextTick(() =>$refs.gudangInput.focus())" 
                             class="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-700 font-black text-xl z-10">✖</button>
                 </div>
                 <div v-if="showGudangList && !isCheckerLocked" class="absolute top-[100%] left-0 right-0 bg-white border-2 border-blue-400 mt-1 rounded shadow-xl z-50 max-h-60 overflow-y-auto">
                     <div v-for="gudang in dynamicGudangList.filter(g => g.toLowerCase().includes(checkerForm.cabang.toLowerCase()))" :key="gudang"
-                         @click="checkerForm.cabang = gudang; checkerForm.noIt = ''; showGudangList = false"
+                         @mousedown.prevent="checkerForm.cabang = gudang; checkerForm.noIt = ''; showGudangList = false"
                          class="p-3 border-b border-gray-100 hover:bg-blue-100 cursor-pointer font-bold text-sm uppercase">
                         {{ gudang }}
                     </div>
@@ -74,17 +74,17 @@
             <div class="flex flex-col relative">
                 <label class="text-xs font-bold text-gray-500 mb-1">No. Pemindahan #</label>
                 <div class="relative">
-                    <input ref="noItInput" type="text" v-model="checkerForm.noIt" :disabled="isCheckerLocked || !checkerForm.cabang" 
+                    <input ref="noItInput" type="text" v-model="checkerForm.noIt" :disabled="isCheckerLocked || !checkerForm.cabang" autocomplete="off"
                            @focus="showNoItList = true; $event.target.select()"
                            @blur="setTimeout(() => showNoItList = false, 200)"
                            placeholder="Ketik / Pilih No..." 
                            class="w-full border-2 border-gray-300 p-3 pr-10 rounded font-bold focus:border-blue-500 outline-none uppercase disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed">
-                    <button v-if="checkerForm.noIt && !isCheckerLocked" @click="checkerForm.noIt = ''; showNoItList = true; $nextTick(() =>$refs.noItInput.focus())" 
+                    <button v-if="checkerForm.noIt && !isCheckerLocked" @mousedown.prevent="checkerForm.noIt = ''; showNoItList = true; $nextTick(() =>$refs.noItInput.focus())" 
                             class="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-700 font-black text-xl z-10">✖</button>
                 </div>
                 <div v-if="showNoItList && !isCheckerLocked" class="absolute top-[100%] left-0 right-0 bg-white border-2 border-blue-400 mt-1 rounded shadow-xl z-50 max-h-60 overflow-y-auto">
                     <div v-for="no in dynamicNoItList.filter(n => n.toLowerCase().includes(checkerForm.noIt.toLowerCase()))" :key="no"
-                         @click="checkerForm.noIt = no; showNoItList = false"
+                         @mousedown.prevent="checkerForm.noIt = no; showNoItList = false"
                          class="p-3 border-b border-gray-100 hover:bg-blue-100 cursor-pointer font-bold text-sm uppercase">
                         {{ no }}
                     </div>
@@ -207,8 +207,8 @@
         </div>
 
         <!-- MODAL POPUP REKAP SELISIH -->
-        <div v-if="showRekapModal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6">
-            <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+        <div v-if="showRekapModal" class="fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center p-6">
+            <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] relative z-[10000]">
                 <div class="bg-slate-900 text-white p-5 flex justify-between items-center">
                     <h3 class="font-black text-xl tracking-widest">REKAP ITEM SELISIH</h3>
                     <button @click="showRekapModal = false" class="text-red-400 font-black text-2xl hover:text-white transition">✕</button>
