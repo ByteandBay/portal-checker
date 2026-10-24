@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portal Checker - Vapeboss</title>
     <!-- Vue 3 & Tailwind CSS -->
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -16,7 +16,7 @@
         .checker-table th { 
             background-color: #f8fafc; 
             color: #334155; 
-            padding: 12px 14px; 
+            padding: 11px 12px; 
             border: 1px solid #e2e8f0; 
             text-align: left; 
             position: sticky; 
@@ -24,11 +24,11 @@
             z-index: 10; 
             font-weight: 800; 
             text-transform: uppercase; 
-            font-size: 0.8rem; 
+            font-size: 0.78rem; 
             letter-spacing: 0.03em;
         }
         .checker-table td { 
-            padding: 10px 14px; 
+            padding: 9px 12px; 
             border: 1px solid #e2e8f0; 
             font-weight: 600; 
             color: #1e293b; 
@@ -39,13 +39,13 @@
         .row-red { background-color: #fef2f2; color: #7f1d1d; }
         .row-white { background-color: #ffffff; }
 
-        .highlight-scan { animation: highlight-fade 2s ease-out; }
+        .highlight-scan { animation: highlight-fade 1.5s ease-out; }
         @keyframes highlight-fade {
-            0% { background-color: #fde047; transform: scale(1.005); }
-            100% { background-color: inherit; transform: scale(1); }
+            0% { background-color: #fde047; }
+            100% { background-color: inherit; }
         }
 
-        .shake-error { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+        .shake-error { animation: shake 0.35s cubic-bezier(.36,.07,.19,.97) both; }
         @keyframes shake {
             10%, 90% { transform: translate3d(-2px, 0, 0); }
             20%, 80% { transform: translate3d(4px, 0, 0); }
@@ -53,7 +53,7 @@
             40%, 60% { transform: translate3d(6px, 0, 0); }
         }
 
-        /* Hilangkan spinner bawaan input number agar bersih */
+        /* Hilangkan panah spinner bawaan input number */
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { 
             -webkit-appearance: none; 
@@ -62,21 +62,22 @@
         input[type=number] { -moz-appearance: textfield; }
     </style>
 </head>
-<body class="text-slate-800 antialiased">
+<body class="text-slate-800 antialiased" @click="closeAllNoteMenus">
     <div id="app" v-cloak class="mx-auto min-h-screen w-full max-w-6xl bg-white shadow-2xl flex flex-col relative">
         
-        <!-- TOAST NOTIFICATION -->
+        <!-- TOAST NOTIFICATION (Non-Blocking) -->
         <div class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4">
             <div v-for="t in toasts" :key="t.id" 
-                 class="pointer-events-auto flex items-start gap-3 p-4 rounded-xl shadow-xl border backdrop-blur-md transition-all"
+                 class="pointer-events-auto flex items-start gap-3 p-3.5 rounded-xl shadow-xl border backdrop-blur-md transition-all"
                  :class="{
                      'bg-red-900/95 border-red-700 text-white': t.type === 'error',
                      'bg-emerald-900/95 border-emerald-700 text-white': t.type === 'success',
-                     'bg-amber-900/95 border-amber-700 text-white': t.type === 'warning'
+                     'bg-amber-900/95 border-amber-700 text-white': t.type === 'warning',
+                     'bg-blue-900/95 border-blue-700 text-white': t.type === 'info'
                  }">
-                <div class="flex-1 text-sm">
-                    <p class="font-extrabold">{{ t.title }}</p>
-                    <p v-if="t.message" class="text-xs opacity-90 mt-0.5">{{ t.message }}</p>
+                <div class="flex-1 text-xs">
+                    <p class="font-extrabold text-sm">{{ t.title }}</p>
+                    <p v-if="t.message" class="opacity-90 mt-0.5 leading-snug">{{ t.message }}</p>
                 </div>
                 <button @click="removeToast(t.id)" class="opacity-70 hover:opacity-100 text-xs font-black">✕</button>
             </div>
@@ -99,7 +100,7 @@
                     <span v-if="isCheckerLocked">🔒</span>
                     <span v-else>🔓</span>
                 </button>
-                <button @click="fetchCheckerData" :disabled="loading"
+                <button @click="fetchCheckerData" :disabled="loading || isSaving"
                         class="bg-[#10b981] hover:bg-emerald-400 disabled:opacity-60 px-8 py-2.5 rounded-full font-black text-slate-900 text-xl tracking-tight shadow-md transition-transform active:scale-95">
                     {{ loading ? 'Memuat...' : 'Tarik Data' }}
                 </button>
@@ -186,9 +187,10 @@
                         {{ rekapSelisihList.length }}
                     </span>
                 </button>
-                <button @click="saveCheckerData" :disabled="loading"
-                        class="w-full bg-[#1e40af] hover:bg-blue-800 disabled:opacity-60 text-white py-4 px-6 rounded-2xl font-black text-lg tracking-wide shadow-md transition-transform active:scale-95">
-                    Simpan Hasil Checker
+                <button @click="saveCheckerData" :disabled="loading || isSaving"
+                        class="w-full bg-[#1e40af] hover:bg-blue-800 disabled:opacity-60 text-white py-4 px-6 rounded-2xl font-black text-lg tracking-wide shadow-md transition-transform active:scale-95 flex items-center justify-center gap-2">
+                    <span v-if="isSaving" class="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin"></span>
+                    <span>{{ isSaving ? saveStatusText : 'Simpan Hasil Checker' }}</span>
                 </button>
             </div>
 
@@ -205,7 +207,7 @@
                             <span>Scan / Ketik Nama Barang</span>
                             <span class="bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">AUTOFOCUS ON</span>
                         </span>
-                        <span v-if="currentScan" class="text-[11px] font-semibold text-slate-500">Tekan <kbd class="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-mono">ESC</kbd> untuk batal</span>
+                        <span v-if="currentScan" class="text-[11px] font-semibold text-slate-500">Tekan <kbd class="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-mono">ESC</kbd> batal</span>
                     </label>
                     <div class="relative">
                         <input ref="scanInput" type="text" v-model="currentScan" 
@@ -217,7 +219,6 @@
                                placeholder="---" 
                                class="w-full border border-[#1e3a8a] px-4 py-2 pr-9 rounded-md font-bold text-base text-center text-blue-950 bg-white focus:ring-2 focus:ring-blue-500/30 outline-none">
                         
-                        <!-- Tombol X Pembatalan Cepat -->
                         <button v-if="currentScan" 
                                 @mousedown.prevent="cancelCurrentScan" 
                                 title="Batalkan (ESC)"
@@ -226,7 +227,7 @@
                         </button>
                     </div>
                     
-                    <!-- Autocomplete Dropdown dengan Highlight Navigasi Panah Atas/Bawah -->
+                    <!-- Autocomplete Dropdown -->
                     <div v-if="customSuggestionsList.length > 0" 
                          ref="suggestionBox"
                          class="absolute top-full left-0 right-0 bg-white border-2 border-blue-400 mt-1 rounded-lg shadow-2xl z-50 max-h-60 overflow-y-auto">
@@ -241,20 +242,21 @@
                     </div>
                 </div>
 
-                <!-- Input Kuantitas dengan Proteksi Anti-Double Scan & Tombol Batal -->
+                <!-- Input Kuantitas (Mendukung Panah Atas/Bawah & Proteksi >4 Digit) -->
                 <div class="flex flex-col">
                     <label class="text-sm font-extrabold text-[#1e3a8a] mb-1 flex items-center justify-between">
                         <span>Input Kuantitas</span>
-                        <span v-if="foundItemLive" class="text-[10px] font-bold text-blue-600">Enter = Simpan</span>
+                        <span v-if="foundItemLive" class="text-[10px] font-bold text-blue-600">↑↓ Ubah | Enter OK</span>
                     </label>
                     <div class="relative">
                         <input ref="qtyInput" type="text" inputmode="numeric" v-model="currentScanQty" 
+                               @keydown.up.prevent="stepScanQty(1)"
+                               @keydown.down.prevent="stepScanQty(-1)"
                                @keydown.enter.prevent="submitScan" 
                                @keydown.esc.prevent="cancelCurrentScan"
                                placeholder="---"
                                class="w-full border border-[#1e3a8a] px-4 py-2 pr-9 rounded-md font-black text-base text-center text-blue-950 bg-white focus:ring-2 focus:ring-blue-500/30 outline-none">
                         
-                        <!-- Tombol X Batal di Kolom Kuantitas -->
                         <button v-if="currentScan || currentScanQty !== ''" 
                                 @mousedown.prevent="cancelCurrentScan" 
                                 title="Batalkan Scan (ESC)"
@@ -309,13 +311,13 @@
                 <div class="relative w-full max-w-2xl">
                     <input type="text" v-model="tableSearch" 
                            @keydown.esc="tableSearch = ''"
-                           placeholder="Search nama barang, kode barcode, atau kategori..." 
+                           placeholder="Search nama barang, kode barcode, kategori, atau keterangan..." 
                            class="w-full border border-slate-300 px-3 py-1.5 pr-8 text-xs font-medium text-slate-700 focus:border-blue-600 outline-none rounded-sm">
                     <button v-if="tableSearch" @click="tableSearch = ''" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 text-xs font-bold">✕</button>
                 </div>
                 
                 <!-- Tombol Filter Ikon Corong -->
-                <div class="relative">
+                <div class="relative" @click.stop>
                     <button @click="showFilterMenu = !showFilterMenu" 
                             class="p-1.5 rounded hover:bg-slate-100 transition flex items-center gap-1"
                             title="Filter Kategori & Status">
@@ -348,6 +350,7 @@
                                 <option value="Kurang">Belum / Kurang (Kuning)</option>
                                 <option value="Pas">Pas (Hijau)</option>
                                 <option value="Berlebih">Berlebih (Merah)</option>
+                                <option value="Berketerangan">Memiliki Catatan/Keterangan</option>
                             </select>
                         </div>
                         <button @click="showFilterMenu = false" class="bg-slate-800 text-white text-xs font-bold py-2 rounded-lg mt-1">Selesai</button>
@@ -356,7 +359,7 @@
             </div>
 
             <!-- Tabel Data -->
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto pb-28">
                 <table class="w-full checker-table border-collapse">
                     <thead>
                         <tr>
@@ -364,14 +367,15 @@
                             <th class="w-2/12">KODE BARANG</th>
                             <th class="w-4/12">NAMA BARANG</th>
                             <th class="w-1/12 text-center">TARGET</th>
-                            <th class="w-2/12 text-center">FISIK (KLIK EDIT)</th>
+                            <th class="w-2/12 text-center">FISIK</th>
                             <th class="w-1/12 text-center">SELISIH</th>
+                            <th class="w-12 text-center" title="Keterangan / Catatan Masalah">KET</th>
                         </tr>
                     </thead>
                     <tbody v-if="sortedCheckerItems.length > 0">
                         <tr v-for="item in sortedCheckerItems" :key="item['Kode Barang']" 
                             :class="[getRowColor(item), item.highlight ? 'highlight-scan' : '']" 
-                            class="transition-colors duration-300">
+                            class="transition-colors duration-200">
                             <td class="text-xs">{{ item['Kategori'] }}</td>
                             <td class="font-mono text-xs text-slate-600">{{ item['Kode Barang'] }}</td>
                             <td class="text-xs leading-snug">
@@ -382,27 +386,30 @@
                             </td>
                             <td class="text-center text-base font-black">{{ item['Kuantitas'] || 0 }}</td>
                             
-                            <!-- Kolom Fisik: Mendukung Ketik Manual, +/-, dan Reset 0 -->
+                            <!-- UPDATE POIN 2 & 3: Edit Manual + Auto-Focus + Enter Setuju + Panah Atas/Bawah -->
                             <td class="text-center">
                                 <div v-if="!item.editMode" @click="openManualEdit(item)" 
-                                     class="text-base font-black cursor-pointer hover:bg-yellow-200/80 py-1 px-2 rounded transition inline-flex items-center gap-1.5" 
-                                     title="Klik untuk ketik manual atau ubah kuantitas">
+                                     class="text-base font-black cursor-pointer hover:bg-yellow-200/80 py-1 px-2 rounded transition inline-flex items-center gap-1" 
+                                     title="Klik untuk ketik manual (Enter = OK, Panah ↑↓ = Ubah)">
                                     <span>{{ item['Fisik'] }}</span>
-                                    <span class="text-xs opacity-60">✏️</span>
+                                    <span class="text-xs opacity-50">✏️</span>
                                 </div>
                                 <div v-else class="flex items-center justify-center gap-1">
-                                    <button @click="adjustFisik(item, -1)" class="bg-red-500 hover:bg-red-600 text-white w-7 h-7 rounded font-black text-sm shrink-0" title="Kurangi 1">-</button>
+                                    <button @click="adjustFisik(item, -1)" class="bg-red-500 hover:bg-red-600 text-white w-6 h-7 rounded font-black text-xs shrink-0" title="Kurangi 1">-</button>
                                     
                                     <input type="number" min="0" 
+                                           v-focus-select
                                            :value="item['Fisik']"
                                            @input="onManualQtyInput(item, $event)"
+                                           @keydown.up.prevent="adjustFisik(item, 1)"
+                                           @keydown.down.prevent="adjustFisik(item, -1)"
                                            @keydown.enter.prevent="closeManualEdit(item)"
                                            @keydown.esc.prevent="closeManualEdit(item)"
-                                           class="w-16 border-2 border-blue-600 rounded px-1 py-0.5 text-center font-black text-sm bg-white text-slate-900 outline-none">
+                                           class="w-14 border-2 border-blue-600 rounded px-1 py-0.5 text-center font-black text-sm bg-white text-slate-900 outline-none">
                                     
-                                    <button @click="adjustFisik(item, 1)" class="bg-emerald-500 hover:bg-emerald-600 text-white w-7 h-7 rounded font-black text-sm shrink-0" title="Tambah 1">+</button>
-                                    <button @click="setFisikZero(item)" class="bg-amber-500 hover:bg-amber-600 text-white px-2 h-7 rounded font-black text-[10px] shrink-0" title="Reset ke 0">0</button>
-                                    <button @click="closeManualEdit(item)" class="bg-slate-800 hover:bg-slate-700 text-white px-2.5 h-7 rounded text-[10px] font-bold shrink-0">OK</button>
+                                    <button @click="adjustFisik(item, 1)" class="bg-emerald-500 hover:bg-emerald-600 text-white w-6 h-7 rounded font-black text-xs shrink-0" title="Tambah 1">+</button>
+                                    <button @click="setFisikZero(item)" class="bg-amber-500 hover:bg-amber-600 text-white px-1.5 h-7 rounded font-black text-[10px] shrink-0" title="Reset ke 0">0</button>
+                                    <button @click="closeManualEdit(item)" class="bg-slate-800 hover:bg-slate-700 text-white px-2 h-7 rounded text-[10px] font-bold shrink-0">OK</button>
                                 </div>
                             </td>
 
@@ -410,6 +417,44 @@
                                 <span :class="getDiffTextClass(item)">
                                     {{ formatDiff(item) }}
                                 </span>
+                            </td>
+
+                            <!-- UPDATE POIN 1: Kolom Note/Keterangan Compact dengan Hover Tooltip & Popover Pilihan -->
+                            <td class="text-center relative" @click.stop>
+                                <div class="relative inline-block group">
+                                    <button @click="toggleNoteMenu(item)"
+                                            class="w-8 h-8 rounded-lg flex items-center justify-center transition-all border relative"
+                                            :class="item['Keterangan'] ? 'bg-red-100 border-red-400 text-red-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-100'">
+                                        <span class="text-sm">{{ item['Keterangan'] ? '📌' : '📝' }}</span>
+                                        <span v-if="item['Keterangan']" class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-600 ring-2 ring-white"></span>
+                                    </button>
+
+                                    <!-- Tooltip Muncul Saat Disorot Pointer (Hover) -->
+                                    <div v-if="!item.showNoteMenu" 
+                                         class="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute right-full mr-2 top-1/2 -translate-y-1/2 z-40 whitespace-nowrap bg-slate-900 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg shadow-lg">
+                                        {{ item['Keterangan'] ? `Keterangan: ${item['Keterangan']}` : 'Klik untuk isi keterangan masalah' }}
+                                    </div>
+
+                                    <!-- Popover Pilihan Keterangan Saat Diklik -->
+                                    <div v-if="item.showNoteMenu" 
+                                         class="absolute right-0 mt-1.5 w-44 bg-white border-2 border-slate-300 rounded-xl shadow-2xl p-1.5 z-50 text-left">
+                                        <div class="text-[10px] font-extrabold text-slate-400 uppercase px-2.5 py-1 border-b border-slate-100">
+                                            Pilih Keterangan
+                                        </div>
+                                        <button v-for="opt in keteranganOptions" :key="opt"
+                                                @click="setKeterangan(item, opt)"
+                                                class="w-full text-left px-2.5 py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-between"
+                                                :class="item['Keterangan'] === opt ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50'">
+                                            <span>{{ opt }}</span>
+                                            <span v-if="item['Keterangan'] === opt">✓</span>
+                                        </button>
+                                        <button v-if="item['Keterangan']"
+                                                @click="setKeterangan(item, '')"
+                                                class="w-full text-left px-2.5 py-1.5 mt-1 border-t border-slate-100 text-[11px] font-bold text-red-600 hover:bg-red-50 rounded-lg">
+                                            ✕ Hapus Keterangan
+                                        </button>
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                     </tbody>
@@ -429,13 +474,13 @@
 
         </main>
 
-        <!-- 5. MODAL POPUP REKAP SELISIH (DENGAN FITUR EDIT LANGSUNG) -->
+        <!-- 5. MODAL POPUP REKAP SELISIH (DENGAN EDIT KUANTITAS & KETERANGAN) -->
         <div v-if="showRekapModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" @keydown.esc="showRekapModal = false">
             <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
                 <div class="bg-slate-800 text-white px-6 py-4 flex justify-between items-center">
                     <div>
-                        <h3 class="font-black text-base uppercase tracking-wider">Rekap Barang Berselisih</h3>
-                        <p class="text-[11px] text-slate-300 mt-0.5">Anda dapat langsung memperbaiki jumlah Fisik di bawah ini</p>
+                        <h3 class="font-black text-base uppercase tracking-wider">Rekap Barang Berselisih / Bermasalah</h3>
+                        <p class="text-[11px] text-slate-300 mt-0.5">Ubah Fisik (Panah ↑↓ / Ketik) atau pilih Keterangan langsung di bawah ini</p>
                     </div>
                     <button @click="showRekapModal = false" class="text-slate-400 hover:text-white font-black text-xl">✕</button>
                 </div>
@@ -443,10 +488,11 @@
                     <table v-if="rekapSelisihList.length > 0" class="w-full checker-table border-collapse bg-white shadow-sm rounded-lg overflow-hidden">
                         <thead>
                             <tr>
-                                <th class="w-5/12">Nama Barang</th>
-                                <th class="w-2/12 text-center">Target</th>
+                                <th class="w-4/12">Nama Barang</th>
+                                <th class="w-1/12 text-center">Target</th>
                                 <th class="w-3/12 text-center">Edit Fisik</th>
-                                <th class="w-2/12 text-center">Status Selisih</th>
+                                <th class="w-1/12 text-center">Selisih</th>
+                                <th class="w-3/12 text-center">Keterangan Masalah</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -457,13 +503,16 @@
                                 </td>
                                 <td class="text-center font-black text-base text-slate-800">{{ item['Kuantitas'] || 0 }}</td>
                                 
-                                <!-- Edit Fisik Langsung di Modal Rekap -->
+                                <!-- Edit Fisik di Modal Rekap (Mendukung Panah Atas/Bawah & Enter) -->
                                 <td class="text-center">
                                     <div class="inline-flex items-center justify-center gap-1">
                                         <button @click="adjustFisik(item, -1)" class="bg-red-500 hover:bg-red-600 text-white w-7 h-7 rounded font-black text-sm">-</button>
                                         <input type="number" min="0" 
                                                :value="item['Fisik']"
                                                @input="onManualQtyInput(item, $event)"
+                                               @keydown.up.prevent="adjustFisik(item, 1)"
+                                               @keydown.down.prevent="adjustFisik(item, -1)"
+                                               @keydown.enter.prevent="$event.target.blur()"
                                                class="w-16 border-2 border-slate-300 focus:border-blue-600 rounded px-1 py-1 text-center font-black text-sm bg-white text-slate-900 outline-none">
                                         <button @click="adjustFisik(item, 1)" class="bg-emerald-500 hover:bg-emerald-600 text-white w-7 h-7 rounded font-black text-sm">+</button>
                                         <button @click="setFisikZero(item)" class="bg-amber-500 hover:bg-amber-600 text-white px-2 h-7 rounded font-black text-[10px]" title="Reset ke 0">0</button>
@@ -472,6 +521,17 @@
 
                                 <td class="text-center font-black text-base" :class="getDiffTextClass(item)">
                                     {{ formatDiff(item) }}
+                                </td>
+
+                                <!-- Pilih Keterangan di Modal Rekap -->
+                                <td class="text-center">
+                                    <select :value="item['Keterangan'] || ''" 
+                                            @change="setKeterangan(item, $event.target.value)"
+                                            class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-bold outline-none focus:border-blue-600"
+                                            :class="item['Keterangan'] ? 'bg-red-50 text-red-700 border-red-300' : 'bg-white text-slate-500'">
+                                        <option value="">-- Pilih Keterangan --</option>
+                                        <option v-for="opt in keteranganOptions" :key="opt" :value="opt">{{ opt }}</option>
+                                    </select>
                                 </td>
                             </tr>
                         </tbody>
@@ -483,9 +543,9 @@
                     </div>
                 </div>
                 <div class="bg-white px-6 py-4 flex justify-between items-center border-t border-slate-200">
-                    <span class="text-xs font-semibold text-slate-500">Total Item Selisih: <strong>{{ rekapSelisihList.length }} SKU</strong></span>
+                    <span class="text-xs font-semibold text-slate-500">Total Item: <strong>{{ rekapSelisihList.length }} SKU</strong></span>
                     <button @click="showRekapModal = false" class="bg-slate-800 text-white px-6 py-2.5 rounded-xl font-bold text-xs hover:bg-slate-700">
-                        Tutup Jendela
+                        Tutup Jendela (ESC)
                     </button>
                 </div>
             </div>
@@ -496,16 +556,21 @@
     <script>
         const { createApp } = Vue;
 
-        createApp({
+        const app = createApp({
             data() {
                 return {
                     apiUrl: 'https://script.google.com/macros/s/AKfycbw-Hlly2gks4HjfRIdD0xL3l7Uhc7I-R2dRaGWYgFMY7qkhRWOYLcSQuEuqHCMLnnsL/exec',
                     loading: false,
+                    isSaving: false,
+                    saveStatusText: 'Menyimpan...',
+                    
                     checkerItems: [],
                     checkerForm: JSON.parse(localStorage.getItem('checkerForm_v2')) || { cabang: '', noIt: '', pic: '' },
                     isCheckerLocked: JSON.parse(localStorage.getItem('isCheckerLocked_v2')) || false,
-                    savedProgress: JSON.parse(localStorage.getItem('checkerProgress_v3')) || {},
+                    savedProgress: JSON.parse(localStorage.getItem('checkerProgress_v4')) || {},
                     checkerFilter: { kategori: 'Semua Kategori', status: 'Semua' },
+                    
+                    keteranganOptions: ['Barang Tidak Ada', 'Bocor', 'Tukar Jual'],
                     
                     currentScan: '',
                     currentScanQty: '',
@@ -519,7 +584,8 @@
                     showFilterMenu: false,
                     showRekapModal: false,
                     toasts: [],
-                    audioCtx: null
+                    audioCtx: null,
+                    storageTimer: null
                 }
             },
             watch: {
@@ -531,7 +597,6 @@
                     localStorage.setItem('isCheckerLocked_v2', JSON.stringify(newVal));
                 },
                 currentScan() {
-                    // Reset highlight index saat ketikan berubah, jika hanya 1 sugesti otomatis sorot baris pertama
                     this.$nextTick(() => {
                         if (this.customSuggestionsList.length === 1) {
                             this.suggestionIndex = 0;
@@ -560,6 +625,21 @@
                         i['No. Pemindahan #'] === this.checkerForm.noIt
                     );
                 },
+                // OPTIMASI ANTI-LAG (POIN 5): Hash Map O(1) untuk pencarian Barcode & Nama Barang secara instan
+                routeLookupMap() {
+                    const byCode = new Map();
+                    const byName = new Map();
+                    for (let i = 0; i < this.routeItems.length; i++) {
+                        const item = this.routeItems[i];
+                        if (item['Kode Barang']) {
+                            byCode.set(String(item['Kode Barang']).trim().toLowerCase(), item);
+                        }
+                        if (item['Nama Barang']) {
+                            byName.set(String(item['Nama Barang']).trim().toLowerCase(), item);
+                        }
+                    }
+                    return { byCode, byName };
+                },
                 totalSkuCount() {
                     return this.routeItems.length;
                 },
@@ -573,7 +653,6 @@
                     const cats = new Set(this.routeItems.map(i => i['Kategori']));
                     return Array.from(cats).filter(c => c && c.toString().trim() !== '');
                 },
-                // UPDATE POIN 1: Item yang baru di-input/di-edit tampil paling atas
                 sortedCheckerItems() {
                     let data = [...this.routeItems];
                     
@@ -586,6 +665,8 @@
                         data = data.filter(i => i['Fisik'] === (i['Kuantitas'] || 0) && (i['Kuantitas'] || 0) > 0);
                     } else if (this.checkerFilter.status === 'Berlebih') {
                         data = data.filter(i => i['Fisik'] > (i['Kuantitas'] || 0));
+                    } else if (this.checkerFilter.status === 'Berketerangan') {
+                        data = data.filter(i => i['Keterangan'] && i['Keterangan'] !== '');
                     }
 
                     if (this.tableSearch.trim() !== '') {
@@ -593,18 +674,17 @@
                         data = data.filter(i => 
                             (i['Nama Barang'] && i['Nama Barang'].toString().toLowerCase().includes(q)) ||
                             (i['Kode Barang'] && i['Kode Barang'].toString().toLowerCase().includes(q)) ||
-                            (i['Kategori'] && i['Kategori'].toString().toLowerCase().includes(q))
+                            (i['Kategori'] && i['Kategori'].toString().toLowerCase().includes(q)) ||
+                            (i['Keterangan'] && i['Keterangan'].toString().toLowerCase().includes(q))
                         );
                     }
                     
                     return data.sort((a, b) => {
                         const timeA = a.lastUpdated || 0;
                         const timeB = b.lastUpdated || 0;
-                        // Prioritas 1: Item yang baru saja di-input/di-edit naik ke paling atas
                         if (timeA !== timeB) {
                             return timeB - timeA;
                         }
-                        // Prioritas 2: Untuk item yang belum pernah disentuh, yang belum selesai di atas
                         const aSelesai = a['Fisik'] === (a['Kuantitas'] || 0) && (a['Kuantitas'] || 0) > 0;
                         const bSelesai = b['Fisik'] === (b['Kuantitas'] || 0) && (b['Kuantitas'] || 0) > 0;
                         if (aSelesai && !bSelesai) return 1; 
@@ -613,15 +693,12 @@
                     });
                 },
                 rekapSelisihList() {
-                    return this.routeItems.filter(i => i['Fisik'] !== (i['Kuantitas'] || 0));
+                    return this.routeItems.filter(i => i['Fisik'] !== (i['Kuantitas'] || 0) || (i['Keterangan'] && i['Keterangan'] !== ''));
                 },
                 foundItemLive() {
                     if (!this.currentScan) return null;
                     const scanStr = this.currentScan.trim().toLowerCase();
-                    return this.routeItems.find(i => 
-                        (i['Kode Barang'] && i['Kode Barang'].toString().toLowerCase() === scanStr) || 
-                        (i['Nama Barang'] && i['Nama Barang'].toString().toLowerCase() === scanStr)
-                    );
+                    return this.routeLookupMap.byCode.get(scanStr) || this.routeLookupMap.byName.get(scanStr) || null;
                 },
                 activeDisplayItem() {
                     return this.foundItemLive || this.lastScannedItem;
@@ -630,12 +707,18 @@
                     if (!this.currentScan || this.currentScan.trim() === '') return [];
                     if (this.foundItemLive) return [];
                     const query = this.currentScan.toLowerCase();
-                    return this.routeItems
-                        .filter(i => 
-                            (i['Nama Barang'] && i['Nama Barang'].toString().toLowerCase().includes(query)) ||
-                            (i['Kode Barang'] && i['Kode Barang'].toString().toLowerCase().includes(query))
-                        )
-                        .slice(0, 15);
+                    const results = [];
+                    for (let i = 0; i < this.routeItems.length; i++) {
+                        const item = this.routeItems[i];
+                        if (
+                            (item['Nama Barang'] && item['Nama Barang'].toString().toLowerCase().includes(query)) ||
+                            (item['Kode Barang'] && item['Kode Barang'].toString().toLowerCase().includes(query))
+                        ) {
+                            results.push(item);
+                            if (results.length >= 15) break;
+                        }
+                    }
+                    return results;
                 }
             },
             methods: {
@@ -651,7 +734,7 @@
                     this.scanErrorAnim = false;
                     this.$nextTick(() => {
                         this.scanErrorAnim = true;
-                        setTimeout(() => this.scanErrorAnim = false, 500);
+                        setTimeout(() => this.scanErrorAnim = false, 400);
                     });
                 },
                 playSound(type) {
@@ -674,8 +757,8 @@
                             osc.frequency.value = 150;
                         }
                         osc.start();
-                        gain.gain.exponentialRampToValueAtTime(0.00001, this.audioCtx.currentTime + 0.25);
-                        osc.stop(this.audioCtx.currentTime + 0.25);
+                        gain.gain.exponentialRampToValueAtTime(0.00001, this.audioCtx.currentTime + 0.22);
+                        osc.stop(this.audioCtx.currentTime + 0.22);
                     } catch (e) {}
                 },
                 isMostRecent(item) {
@@ -684,20 +767,48 @@
                 getStorageKey(item) {
                     return `${item['Gudang Tujuan/Dari']}__${item['No. Pemindahan #']}__${item['Kode Barang']}`;
                 },
-                persistItemQty(item) {
+                // OPTIMASI POIN 5: Asynchronous Debounced LocalStorage (Anti-Freeze)
+                persistItemState(item) {
                     const key = this.getStorageKey(item);
-                    if (item['Fisik'] > 0 || item.lastUpdated > 0) {
+                    if (item['Fisik'] > 0 || item.lastUpdated > 0 || item['Keterangan']) {
                         this.savedProgress[key] = {
                             fisik: item['Fisik'],
+                            keterangan: item['Keterangan'] || '',
                             lastUpdated: item.lastUpdated || 0
                         };
                     } else {
                         delete this.savedProgress[key];
                     }
-                    localStorage.setItem('checkerProgress_v3', JSON.stringify(this.savedProgress));
+                    if (this.storageTimer) clearTimeout(this.storageTimer);
+                    this.storageTimer = setTimeout(() => {
+                        try {
+                            localStorage.setItem('checkerProgress_v4', JSON.stringify(this.savedProgress));
+                        } catch (e) {}
+                    }, 250);
                 },
 
-                // UPDATE POIN 2: Edit Manual & Kontrol Kuantitas
+                // UPDATE POIN 1: Fungsi Keterangan / Note
+                toggleNoteMenu(item) {
+                    const current = item.showNoteMenu;
+                    this.closeAllNoteMenus();
+                    item.showNoteMenu = !current;
+                },
+                closeAllNoteMenus() {
+                    for (let i = 0; i < this.routeItems.length; i++) {
+                        if (this.routeItems[i].showNoteMenu) {
+                            this.routeItems[i].showNoteMenu = false;
+                        }
+                    }
+                    this.showFilterMenu = false;
+                },
+                setKeterangan(item, value) {
+                    item['Keterangan'] = value;
+                    item.showNoteMenu = false;
+                    item.lastUpdated = Date.now();
+                    this.persistItemState(item);
+                },
+
+                // UPDATE POIN 2, 3, & 4: Edit Manual + Panah Atas/Bawah + Enter + Proteksi > 4 Digit
                 openManualEdit(item) {
                     this.routeItems.forEach(i => { if (i !== item) i.editMode = false; });
                     item.editMode = true;
@@ -707,11 +818,11 @@
                     this.$nextTick(() => { if (this.$refs.scanInput) this.$refs.scanInput.focus(); });
                 },
                 onManualQtyInput(item, event) {
-                    const rawVal = event.target.value;
-                    // Proteksi jika tidak sengaja menembak barcode saat edit manual di tabel
-                    if (rawVal.length >= 6) {
+                    const rawVal = String(event.target.value).trim();
+                    // UPDATE POIN 4: Batas > 4 digit (5 digit ke atas diblokir sebagai salah scan barcode)
+                    if (rawVal.length > 4) {
                         this.playSound('error');
-                        this.notify('error', 'Terdeteksi Scan Barcode!', 'Input melebihi batas wajar kuantitas dan dibatalkan otomatis.');
+                        this.notify('error', 'Terdeteksi Barcode (>4 Digit)!', 'Input melebihi 4 digit dibatalkan otomatis.');
                         event.target.value = item['Fisik'];
                         return;
                     }
@@ -719,24 +830,32 @@
                     item['Fisik'] = isNaN(parsed) || parsed < 0 ? 0 : parsed;
                     item.lastUpdated = Date.now();
                     this.lastScannedItem = item;
-                    this.persistItemQty(item);
+                    this.persistItemState(item);
                 },
                 adjustFisik(item, delta) {
                     const next = (Number(item['Fisik']) || 0) + delta;
-                    if (next < 0) return;
+                    if (next < 0 || next > 9999) return;
                     item['Fisik'] = next;
                     item.lastUpdated = Date.now();
                     this.lastScannedItem = item;
-                    this.persistItemQty(item);
+                    this.persistItemState(item);
                 },
                 setFisikZero(item) {
                     item['Fisik'] = 0;
                     item.lastUpdated = Date.now();
                     this.lastScannedItem = item;
-                    this.persistItemQty(item);
+                    this.persistItemState(item);
                 },
 
-                // UPDATE POIN 3: Pembatalan Cepat dengan ESC atau Tombol X
+                // UPDATE POIN 3: Panah Atas/Bawah pada Kolom Input Kuantitas Utama
+                stepScanQty(delta) {
+                    const current = parseInt(this.currentScanQty, 10) || 0;
+                    const next = current + delta;
+                    if (next >= 1 && next <= 9999) {
+                        this.currentScanQty = next;
+                    }
+                },
+
                 cancelCurrentScan() {
                     this.currentScan = '';
                     this.currentScanQty = '';
@@ -746,7 +865,6 @@
                     });
                 },
 
-                // UPDATE POIN 4: Navigasi Panah Atas/Bawah & Enter di Sugesti
                 navigateSuggestion(step) {
                     const len = this.customSuggestionsList.length;
                     if (len === 0) return;
@@ -760,7 +878,6 @@
                 },
                 handleScanEnter() {
                     if (this.customSuggestionsList.length > 0) {
-                        // Jika hanya ada 1 sugesti, atau pengguna sudah memilih dengan panah atas/bawah
                         if (this.customSuggestionsList.length === 1) {
                             this.selectCustomSuggestion(this.customSuggestionsList[0]['Nama Barang']);
                             return;
@@ -796,28 +913,24 @@
                     } else {
                         this.playSound('error');
                         this.triggerErrorShake();
-                        this.notify('error', 'Barang Tidak Ditemukan!', `"${this.currentScan}" tidak ada pada rute ini.`);
+                        this.notify('error', 'Barang Tidak Ditemukan!', `"${this.currentScan}" tidak terdaftar pada rute ini.`);
                         this.currentScan = '';
                     }
                 },
 
-                // UPDATE POIN 2: Proteksi Double Scan di Kolom Kuantitas + Urutan Paling Atas
+                // UPDATE POIN 4: Anti-Barcode > 4 Digit di Kolom Input Kuantitas
                 submitScan() {
                     if (!this.foundItemLive) return;
 
                     const rawQtyStr = String(this.currentScanQty).trim();
 
-                    // DETEKSI ANTI-DOUBLE SCAN:
-                    // Jika input di kolom Kuantitas adalah kode barang yang ada di rute, ATAU panjangnya >= 6 digit (barcode),
-                    // batalkan penambahan kuantitas dan alihkan menjadi scan barang baru!
-                    const matchedBarcodeItem = this.routeItems.find(i => 
-                        i['Kode Barang'] && i['Kode Barang'].toString().toLowerCase() === rawQtyStr.toLowerCase()
-                    );
+                    // Jika lebih dari 4 digit (> 9999) atau cocok dengan barcode di database
+                    const matchedBarcodeItem = this.routeLookupMap.byCode.get(rawQtyStr.toLowerCase());
 
-                    if ((rawQtyStr.length >= 6 && matchedBarcodeItem) || rawQtyStr.length >= 6 || Number(rawQtyStr) > 9999) {
+                    if (rawQtyStr.length > 4 || Number(rawQtyStr) > 9999 || (rawQtyStr.length > 4 && matchedBarcodeItem)) {
                         if (matchedBarcodeItem) {
                             this.playSound('error');
-                            this.notify('warning', 'Terdeteksi Scan Barcode Baru!', `Kolom kuantitas diabaikan. Beralih ke: ${matchedBarcodeItem['Nama Barang']}`);
+                            this.notify('warning', 'Terdeteksi Scan Barcode Baru!', `Kuantitas dibatalkan. Beralih ke: ${matchedBarcodeItem['Nama Barang']}`);
                             this.currentScan = matchedBarcodeItem['Kode Barang'];
                             this.currentScanQty = 1;
                             this.$nextTick(() => {
@@ -828,7 +941,7 @@
                         } else {
                             this.playSound('error');
                             this.triggerErrorShake();
-                            this.notify('error', 'Input Kuantitas Tidak Wajar!', `Angka "${rawQtyStr}" terdeteksi sebagai salah scan barcode dan telah dibatalkan.`);
+                            this.notify('error', 'Ditolak (> 4 Digit)!', `Input "${rawQtyStr}" terdeteksi sebagai barcode (>4 digit) dan telah dibatalkan.`);
                             this.currentScanQty = 1;
                             this.$nextTick(() => {
                                 this.$refs.qtyInput.focus();
@@ -842,14 +955,14 @@
                     const qtyToAdd = Number(rawQtyStr) > 0 ? Number(rawQtyStr) : 1;
                     
                     item['Fisik'] += qtyToAdd;
-                    item.lastUpdated = Date.now(); // Membuat item ini langsung naik ke urutan #1 paling atas
+                    item.lastUpdated = Date.now();
                     this.lastScannedItem = item;
-                    this.persistItemQty(item);
+                    this.persistItemState(item);
 
                     item.highlight = false;
                     this.$nextTick(() => {
                         item.highlight = true;
-                        setTimeout(() => item.highlight = false, 2000);
+                        setTimeout(() => item.highlight = false, 1500);
                     });
 
                     if (item['Fisik'] > (item['Kuantitas'] || 0)) {
@@ -878,17 +991,36 @@
                 getRowColor(item) {
                     const qty = item['Kuantitas'] || 0;
                     const fisik = item['Fisik'];
-                    if (fisik === 0) return 'row-white';
+                    if (fisik === 0 && !item['Keterangan']) return 'row-white';
                     if (fisik > qty) return 'row-red';
-                    if (fisik === qty) return 'row-green';
+                    if (fisik === qty && qty > 0) return 'row-green';
                     return 'row-yellow';
                 },
+
+                // UPDATE POIN 5: Helper Fetch dengan Auto-Retry & Exponential Jitter Backoff (Tahan 20 User Concurrent)
+                async fetchWithRetry(url, options = {}, maxRetries = 4) {
+                    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                        try {
+                            if (this.isSaving && attempt > 1) {
+                                this.saveStatusText = `Antre Server (${attempt}/${maxRetries})...`;
+                            }
+                            const res = await fetch(url, options);
+                            const text = await res.text();
+                            const json = JSON.parse(text);
+                            return json;
+                        } catch (err) {
+                            if (attempt === maxRetries) throw err;
+                            // Jeda acak (800ms - 2500ms) agar 20 orang tidak menabrak server di milidetik yang sama lagi
+                            const delay = Math.min(1000 * Math.pow(1.6, attempt - 1) + Math.random() * 600, 6000);
+                            await new Promise(r => setTimeout(r, delay));
+                        }
+                    }
+                },
+
                 async fetchCheckerData() {
                     this.loading = true;
                     try {
-                        const res = await fetch(`${this.apiUrl}?action=checker`, { redirect: "follow" });
-                        const textResponse = await res.text();
-                        const result = JSON.parse(textResponse);
+                        const result = await this.fetchWithRetry(`${this.apiUrl}?action=checker`, { redirect: "follow" }, 3);
                         if (result.status === 'success') {
                             this.checkerItems = result.data.map(item => {
                                 const key = `${item['Gudang Tujuan/Dari']}__${item['No. Pemindahan #']}__${item['Kode Barang']}`;
@@ -896,23 +1028,27 @@
                                 return {
                                     ...item,
                                     'Fisik': saved ? (saved.fisik || 0) : 0,
+                                    'Keterangan': saved ? (saved.keterangan || '') : (item['Keterangan'] || ''),
                                     'lastUpdated': saved ? (saved.lastUpdated || 0) : 0,
                                     'editMode': false,
+                                    'showNoteMenu': false,
                                     'highlight': false
                                 };
                             });
-                            this.notify('success', 'Data Berhasil Ditarik', `${this.checkerItems.length} item dimuat.`);
+                            this.notify('success', 'Data Berhasil Ditarik', `${this.checkerItems.length} item siap digunakan.`);
                         } else {
                             this.notify('error', 'Gagal dari Server', result.message);
                         }
                     } catch (e) {
-                        this.notify('error', 'Gagal Menarik Data', e.message);
+                        this.notify('error', 'Gagal Menarik Data', 'Server sedang sibuk, silakan coba lagi.');
                     } finally {
                         this.loading = false;
                         setTimeout(() => { if (this.$refs.scanInput) this.$refs.scanInput.focus(); }, 100);
                     }
                 },
+
                 async saveCheckerData() {
+                    if (this.isSaving) return; // Cegah double click
                     if (!this.checkerForm.pic || !this.checkerForm.cabang || !this.checkerForm.noIt) {
                         this.notify('warning', 'Data Belum Lengkap', 'Harap isi PIC Checker, Cabang Tujuan, dan No. Pemindahan.');
                         return;
@@ -924,38 +1060,51 @@
                         nama_barang: i['Nama Barang'],
                         target: i['Kuantitas'] || 0,
                         fisik: i['Fisik'],
-                        selisih: i['Fisik'] - (i['Kuantitas'] || 0)
+                        selisih: i['Fisik'] - (i['Kuantitas'] || 0),
+                        keterangan: i['Keterangan'] || '' // Kolom keterangan ikut dikirim ke Spreadsheet
                     }));
 
                     if (dataToSave.length === 0) return;
 
-                    this.loading = true;
+                    this.isSaving = true;
+                    this.saveStatusText = 'Menyimpan...';
                     try {
-                        const res = await fetch(this.apiUrl, {
+                        const result = await this.fetchWithRetry(this.apiUrl, {
                             method: 'POST',
                             body: JSON.stringify({
+                                request_id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
                                 pic: this.checkerForm.pic,
                                 cabang: this.checkerForm.cabang,
                                 no_it: this.checkerForm.noIt,
                                 checker_data: dataToSave
                             }),
                             headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-                        });
-                        const textResponse = await res.text();
-                        const result = JSON.parse(textResponse);
+                        }, 4);
+
                         if (result.status === 'success') {
-                            this.notify('success', 'Tersimpan!', 'Hasil Checker berhasil disimpan ke Server.');
+                            this.notify('success', 'Tersimpan Aman!', 'Hasil Checker & Keterangan berhasil dicatat di Server.');
                         } else {
                             this.notify('error', 'Gagal Menyimpan', result.message);
                         }
                     } catch (e) {
-                        this.notify('error', 'Error Jaringan', e.message);
+                        this.notify('error', 'Server Penuh / Gangguan Jaringan', 'Data Anda tetap aman di browser. Silakan klik Simpan sekali lagi.');
                     } finally {
-                        this.loading = false;
+                        this.isSaving = false;
+                        this.saveStatusText = 'Simpan Hasil Checker';
                     }
                 }
             }
-        }).mount('#app');
+        });
+
+        // Custom Directive agar saat klik Edit Fisik, input otomatis Focus & Select All
+        app.directive('focus-select', {
+            mounted(el) {
+                el.focus();
+                el.select();
+            }
+        });
+
+        app.mount('#app');
     </script>
 </body>
 </html>
