@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal Checker - Vapeboss</title>
+    <title>Portal Checker (Portal C) - Vapeboss</title>
     <!-- Vue 3 & Tailwind CSS -->
-    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
@@ -53,7 +53,10 @@
             40%, 60% { transform: translate3d(6px, 0, 0); }
         }
 
-        /* Hilangkan panah spinner bawaan input number */
+        .bottom-sheet { transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
+        .sheet-hidden { transform: translateY(100%); }
+        .sheet-visible { transform: translateY(0); }
+
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { 
             -webkit-appearance: none; 
@@ -62,10 +65,11 @@
         input[type=number] { -moz-appearance: textfield; }
     </style>
 </head>
-<body class="text-slate-800 antialiased" @click="closeAllNoteMenus">
-    <div id="app" v-cloak class="mx-auto min-h-screen w-full max-w-6xl bg-white shadow-2xl flex flex-col relative">
+<body class="text-slate-800 antialiased">
+    <!-- Event @click="closeAllNoteMenus" berada di dalam #app agar tidak memicu Blank Screen -->
+    <div id="app" v-cloak @click="closeAllNoteMenus" class="mx-auto min-h-screen w-full max-w-6xl bg-white shadow-2xl flex flex-col relative">
         
-        <!-- TOAST NOTIFICATION (Non-Blocking) -->
+        <!-- TOAST NOTIFICATION (Non-Blocking, Tanpa Refresh Halaman) -->
         <div class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4">
             <div v-for="t in toasts" :key="t.id" 
                  class="pointer-events-auto flex items-start gap-3 p-3.5 rounded-xl shadow-xl border backdrop-blur-md transition-all"
@@ -79,29 +83,88 @@
                     <p class="font-extrabold text-sm">{{ t.title }}</p>
                     <p v-if="t.message" class="opacity-90 mt-0.5 leading-snug">{{ t.message }}</p>
                 </div>
-                <button @click="removeToast(t.id)" class="opacity-70 hover:opacity-100 text-xs font-black">✕</button>
+                <button @click="removeToast(t.id)" title="Tutup Notifikasi" class="opacity-70 hover:opacity-100 text-xs font-black">✕</button>
             </div>
         </div>
 
-        <!-- 1. HEADER APP -->
-        <header class="bg-[#1d4ed8] text-white px-6 py-4 shadow-md flex items-center justify-between z-30">
-            <div class="flex items-center gap-4">
-                <a href="https://byteandbay.github.io/picker-webapp/" 
-                   class="bg-[#1e3a8a] hover:bg-blue-900 px-4 py-2 rounded-lg font-bold transition border border-blue-500/60 shadow-inner text-xs inline-flex items-center gap-2 no-underline">
-                    <span>⬅</span> Buka Portal Picker
-                </a>
-                <h1 class="font-black text-xl md:text-2xl tracking-wide uppercase">PORTAL CHECKER VAPEBOSS</h1>
+        <!-- MODAL PERINGATAN SAAT TER-SCAN BARCODE (>4 DIGIT) DI KOLOM KUANTITAS (Tanpa Refresh Halaman, Langsung Bersihkan & Input Ulang) -->
+        <div v-if="barcodeWarningModal.show" @click.stop class="fixed inset-0 bg-red-950/75 backdrop-blur-sm z-[9998] flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border-4 border-red-600 text-center">
+                <div class="w-14 h-14 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                </div>
+                <h3 class="font-black text-lg text-red-700 uppercase tracking-wide mb-1">
+                    Peringatan: Input &gt; 4 Digit!
+                </h3>
+                <p class="text-xs font-semibold text-slate-600 leading-relaxed mb-4">
+                    {{ barcodeWarningModal.message }}
+                </p>
+                <div class="bg-red-50 border border-red-200 rounded-xl p-3 mb-5 text-xs font-mono font-bold text-red-900 break-all">
+                    Input Ditolak: {{ barcodeWarningModal.scannedValue }}
+                </div>
+                <div class="flex gap-2 justify-center">
+                    <button v-if="barcodeWarningModal.matchedItem"
+                            @click="switchFromQtyBarcodeWarning"
+                            class="flex-1 bg-blue-700 hover:bg-blue-800 text-white font-extrabold text-xs py-3 px-4 rounded-xl transition">
+                        Pindah ke Barang Ini
+                    </button>
+                    <button @click="dismissBarcodeWarningModal"
+                            ref="warningOkBtn"
+                            class="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs py-3 px-4 rounded-xl transition">
+                        Bersihkan &amp; Isi Qty (Enter)
+                    </button>
+                </div>
             </div>
+        </div>
+
+        <!-- 1. HEADER APP (Dengan Tombol Menu Navigasi ke Portal A & B, Tanpa Duplikasi Simbol+Teks) -->
+        <header class="bg-[#1d4ed8] text-white px-6 py-4 shadow-md flex items-center justify-between z-30">
             <div class="flex items-center gap-3">
-                <button @click="isCheckerLocked = !isCheckerLocked" 
-                        class="w-11 h-11 rounded-full flex items-center justify-center text-lg transition-all shadow-md border-2"
-                        :class="isCheckerLocked ? 'bg-amber-500 border-amber-300 text-slate-900' : 'bg-slate-800 hover:bg-slate-700 border-slate-500 text-white'"
-                        :title="isCheckerLocked ? 'Buka Kunci Informasi' : 'Kunci Informasi'">
-                    <span v-if="isCheckerLocked">🔒</span>
-                    <span v-else>🔓</span>
+                <!-- Tombol Menu Pilihan Antar Portal (Menghubungkan C ke A dan B) -->
+                <button @click.stop="portalMenuOpen = true" 
+                        class="bg-[#d4e157] hover:bg-lime-300 text-slate-900 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider shadow-sm transition active:scale-95">
+                    Menu Portal
                 </button>
+                <h1 class="font-black text-lg md:text-2xl tracking-wide uppercase">PORTAL CHECKER (C)</h1>
+            </div>
+            <div class="flex items-center gap-2.5">
+                <!-- Tombol Tes Nada Unik (Klop, Kurang, Lebih) -->
+                <div class="hidden md:flex items-center gap-1 bg-blue-800/80 border border-blue-500/40 rounded-full px-2.5 py-1 text-[10px] font-bold">
+                    <button @click="playSound('kurang')" title="Tes Suara Kurang" class="px-2 py-0.5 rounded-full hover:bg-amber-500/30 text-amber-200 transition">Nada Kurang</button>
+                    <span class="opacity-40">|</span>
+                    <button @click="playSound('klop')" title="Tes Suara Klop / Pas" class="px-2 py-0.5 rounded-full hover:bg-emerald-500/30 text-emerald-200 transition">Nada Klop</button>
+                    <span class="opacity-40">|</span>
+                    <button @click="playSound('lebih')" title="Tes Suara Lebih" class="px-2 py-0.5 rounded-full hover:bg-rose-500/30 text-rose-200 transition">Nada Lebih</button>
+                </div>
+
+                <!-- Ikon Pengaturan Link GitHub Antar Portal -->
+                <button @click.stop="showConfigModal = true" 
+                        title="Pengaturan Link Portal A, B, C"
+                        class="w-10 h-10 rounded-full bg-blue-800 hover:bg-blue-900 border border-blue-400/50 text-white flex items-center justify-center transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                </button>
+
+                <!-- Hanya Ikon Kunci (Tanpa Teks Ganda) -->
+                <button @click="isCheckerLocked = !isCheckerLocked" 
+                        class="w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-md border-2"
+                        :class="isCheckerLocked ? 'bg-amber-500 border-amber-300 text-slate-900' : 'bg-slate-800 hover:bg-slate-700 border-slate-500 text-white'"
+                        :title="isCheckerLocked ? 'Buka Kunci Informasi PIC & Rute' : 'Kunci Informasi PIC & Rute'">
+                    <svg v-if="isCheckerLocked" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                    </svg>
+                    <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path>
+                    </svg>
+                </button>
+
+                <!-- Hanya Memuat Data saat Tombol Tarik Data Diklik -->
                 <button @click="fetchCheckerData" :disabled="loading || isSaving"
-                        class="bg-[#10b981] hover:bg-emerald-400 disabled:opacity-60 px-8 py-2.5 rounded-full font-black text-slate-900 text-xl tracking-tight shadow-md transition-transform active:scale-95">
+                        class="bg-[#10b981] hover:bg-emerald-400 disabled:opacity-60 px-6 py-2.5 rounded-full font-black text-slate-900 text-base md:text-lg tracking-tight shadow-md transition-transform active:scale-95">
                     {{ loading ? 'Memuat...' : 'Tarik Data' }}
                 </button>
             </div>
@@ -110,13 +173,19 @@
         <!-- 2. PANEL ADMINISTRATIF, RINGKASAN & TOMBOL AKSI -->
         <section class="px-6 py-5 bg-white grid grid-cols-1 lg:grid-cols-12 gap-6 items-center z-20">
             
-            <!-- Kolom Kiri: PIC, Cabang Tujuan, No. Pemindahan -->
+            <!-- Kolom Kiri: PIC, Cabang Tujuan, No. Pemindahan (Dilengkapi Tombol Bersihkan Tanpa Refresh) -->
             <div class="lg:col-span-4 flex flex-col gap-2.5">
                 <div class="flex flex-col">
                     <label class="text-xs font-bold text-slate-400 mb-1">PIC Checker</label>
-                    <input type="text" v-model="checkerForm.pic" :disabled="isCheckerLocked" 
-                           placeholder="---Ketik Nama---" 
-                           class="w-full border border-slate-400 px-3 py-2 rounded-md text-xs font-bold text-center uppercase placeholder:font-normal placeholder:normal-case placeholder:text-slate-300 focus:border-blue-600 outline-none disabled:bg-slate-100 disabled:text-slate-500">
+                    <div class="relative">
+                        <input ref="picInput" type="text" v-model="checkerForm.pic" :disabled="isCheckerLocked" 
+                               placeholder="---Ketik Nama---" 
+                               class="w-full border border-slate-400 px-3 py-2 rounded-md text-xs font-bold text-center uppercase placeholder:font-normal placeholder:normal-case placeholder:text-slate-300 focus:border-blue-600 outline-none disabled:bg-slate-100 disabled:text-slate-500">
+                        <button v-if="checkerForm.pic && !isCheckerLocked" 
+                                @mousedown.prevent="clearPicSelection" 
+                                title="Bersihkan Nama PIC"
+                                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 font-bold text-xs">✕</button>
+                    </div>
                 </div>
 
                 <div class="flex flex-col relative">
@@ -124,11 +193,12 @@
                     <div class="relative">
                         <input ref="gudangInput" type="text" v-model="checkerForm.cabang" :disabled="isCheckerLocked" autocomplete="off"
                                @focus="showGudangList = true; $event.target.select()" 
-                               @blur="setTimeout(() => showGudangList = false, 200)" 
+                               @blur="hideGudangDropdownDelayed" 
                                placeholder="---Ketik / Pilih Nama Cabang---" 
                                class="w-full border border-slate-400 px-3 py-2 rounded-md text-xs font-bold text-center uppercase placeholder:font-normal placeholder:normal-case placeholder:text-slate-300 focus:border-blue-600 outline-none disabled:bg-slate-100 disabled:text-slate-500">
                         <button v-if="checkerForm.cabang && !isCheckerLocked" 
-                                @mousedown.prevent="checkerForm.cabang = ''; checkerForm.noIt = ''; showGudangList = true; $nextTick(() => $refs.gudangInput.focus())" 
+                                @mousedown.prevent="clearCabangSelection" 
+                                title="Bersihkan Pilihan Cabang"
                                 class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 font-bold text-xs">✕</button>
                     </div>
                     <div v-if="showGudangList && !isCheckerLocked" class="absolute top-full left-0 right-0 bg-white border border-slate-300 mt-1 rounded-md shadow-xl z-50 max-h-52 overflow-y-auto">
@@ -146,11 +216,12 @@
                     <div class="relative">
                         <input ref="noItInput" type="text" v-model="checkerForm.noIt" :disabled="isCheckerLocked || !checkerForm.cabang" autocomplete="off"
                                @focus="showNoItList = true; $event.target.select()" 
-                               @blur="setTimeout(() => showNoItList = false, 200)" 
+                               @blur="hideNoItDropdownDelayed" 
                                placeholder="---Pilih No. Pemindahan---" 
                                class="w-full border border-slate-400 px-3 py-2 rounded-md text-xs font-bold text-center uppercase placeholder:font-normal placeholder:normal-case placeholder:text-slate-300 focus:border-blue-600 outline-none disabled:bg-slate-100 disabled:text-slate-500">
                         <button v-if="checkerForm.noIt && !isCheckerLocked" 
-                                @mousedown.prevent="checkerForm.noIt = ''; showNoItList = true; $nextTick(() => $refs.noItInput.focus())" 
+                                @mousedown.prevent="clearNoItSelection" 
+                                title="Bersihkan No. Pemindahan"
                                 class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 font-bold text-xs">✕</button>
                     </div>
                     <div v-if="showNoItList && !isCheckerLocked" class="absolute top-full left-0 right-0 bg-white border border-slate-300 mt-1 rounded-md shadow-xl z-50 max-h-52 overflow-y-auto">
@@ -189,25 +260,24 @@
                 </button>
                 <button @click="saveCheckerData" :disabled="loading || isSaving"
                         class="w-full bg-[#1e40af] hover:bg-blue-800 disabled:opacity-60 text-white py-4 px-6 rounded-2xl font-black text-lg tracking-wide shadow-md transition-transform active:scale-95 flex items-center justify-center gap-2">
-                    <span v-if="isSaving" class="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin"></span>
                     <span>{{ isSaving ? saveStatusText : 'Simpan Hasil Checker' }}</span>
                 </button>
             </div>
 
         </section>
 
-        <!-- 3. AREA SCAN BARCODE & DISPLAY BESAR -->
+        <!-- 3. AREA SCAN BARCODE & DISPLAY BESAR (Jika Salah Input, Langsung Bersihkan Tanpa Reload) -->
         <section class="px-6 py-4 bg-[#eff6ff] border-y border-blue-100 flex flex-col gap-3 relative z-10" :class="{'shake-error': scanErrorAnim}">
             
             <!-- Baris 1: Input Scan & Input Kuantitas -->
-            <div class="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-3 items-end">
+            <div class="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-3 items-end">
                 <div class="flex flex-col relative">
                     <label class="text-sm font-extrabold text-[#1e3a8a] mb-1 flex items-center justify-between">
                         <span class="flex items-center gap-2">
-                            <span>Scan / Ketik Nama Barang</span>
-                            <span class="bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">AUTOFOCUS ON</span>
+                            <span>Scan Barcode / Ketik Nama Barang</span>
+                            <span class="bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">AUTOFOCUS</span>
                         </span>
-                        <span v-if="currentScan" class="text-[11px] font-semibold text-slate-500">Tekan <kbd class="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-mono">ESC</kbd> batal</span>
+                        <span v-if="currentScan" class="text-[11px] font-semibold text-slate-500">ESC untuk bersihkan</span>
                     </label>
                     <div class="relative">
                         <input ref="scanInput" type="text" v-model="currentScan" 
@@ -216,12 +286,12 @@
                                @keydown.enter.prevent="handleScanEnter"
                                @keydown.esc.prevent="cancelCurrentScan"
                                autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-                               placeholder="---" 
+                               placeholder="..." 
                                class="w-full border border-[#1e3a8a] px-4 py-2 pr-9 rounded-md font-bold text-base text-center text-blue-950 bg-white focus:ring-2 focus:ring-blue-500/30 outline-none">
                         
                         <button v-if="currentScan" 
                                 @mousedown.prevent="cancelCurrentScan" 
-                                title="Batalkan (ESC)"
+                                title="Bersihkan Input (ESC)"
                                 class="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-200 hover:bg-red-500 hover:text-white text-slate-600 font-black text-xs flex items-center justify-center transition-colors">
                             ✕
                         </button>
@@ -242,24 +312,26 @@
                     </div>
                 </div>
 
-                <!-- Input Kuantitas (Mendukung Panah Atas/Bawah & Proteksi >4 Digit) -->
+                <!-- Input Kuantitas (Maks 4 Digit, Jika Salah Langsung Bersihkan Tanpa Refresh) -->
                 <div class="flex flex-col">
                     <label class="text-sm font-extrabold text-[#1e3a8a] mb-1 flex items-center justify-between">
                         <span>Input Kuantitas</span>
-                        <span v-if="foundItemLive" class="text-[10px] font-bold text-blue-600">↑↓ Ubah | Enter OK</span>
+                        <span v-if="foundItemLive" class="text-[10px] font-bold text-blue-600">Enter = OK</span>
                     </label>
                     <div class="relative">
-                        <input ref="qtyInput" type="text" inputmode="numeric" v-model="currentScanQty" 
+                        <input ref="qtyInput" type="text" inputmode="numeric" 
+                               v-model="currentScanQty" 
+                               @input="onScanQtyLiveInput"
                                @keydown.up.prevent="stepScanQty(1)"
                                @keydown.down.prevent="stepScanQty(-1)"
                                @keydown.enter.prevent="submitScan" 
                                @keydown.esc.prevent="cancelCurrentScan"
-                               placeholder="---"
+                               placeholder="..."
                                class="w-full border border-[#1e3a8a] px-4 py-2 pr-9 rounded-md font-black text-base text-center text-blue-950 bg-white focus:ring-2 focus:ring-blue-500/30 outline-none">
                         
                         <button v-if="currentScan || currentScanQty !== ''" 
                                 @mousedown.prevent="cancelCurrentScan" 
-                                title="Batalkan Scan (ESC)"
+                                title="Bersihkan Scan (ESC)"
                                 class="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-200 hover:bg-red-500 hover:text-white text-slate-600 font-black text-xs flex items-center justify-center transition-colors">
                             ✕
                         </button>
@@ -279,28 +351,30 @@
                 </span>
             </div>
 
-            <!-- Baris 3: Kotak Display Target | Selisih -->
+            <!-- Baris 3: Kotak Display Target | Fisik | Selisih -->
             <div class="flex justify-center">
-                <div class="border border-[#1e3a8a] rounded-md bg-[#eff6ff] px-8 py-2 min-w-[240px] text-center">
+                <div class="border border-[#1e3a8a] rounded-md bg-[#eff6ff] px-8 py-2 min-w-[260px] text-center">
                     <span v-if="activeDisplayItem" class="text-2xl font-bold tracking-tight text-slate-800">
                         Target: {{ activeDisplayItem['Kuantitas'] || 0 }}
+                        <span class="mx-2 text-slate-400">|</span>
+                        Fisik: {{ activeDisplayItem['Fisik'] || 0 }}
                         <span class="mx-2 text-slate-400">|</span>
                         <span :class="getDiffTextClass(activeDisplayItem)">
                             Selisih: {{ formatDiff(activeDisplayItem) }}
                         </span>
                     </span>
                     <span v-else class="text-2xl font-normal text-slate-400">
-                        Target | Selisih
+                        Target | Fisik | Selisih
                     </span>
                 </div>
             </div>
 
         </section>
 
-        <!-- LOADING SPINNER -->
+        <!-- LOADING SPINNER (Hanya saat klik Tarik Data dari Spreadsheet) -->
         <div v-if="loading" class="flex flex-col items-center justify-center p-16 flex-1 bg-white">
             <div class="animate-spin w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full mb-4"></div>
-            <p class="font-bold text-blue-900 text-base">Menyinkronkan database barcode...</p>
+            <p class="font-bold text-blue-900 text-base">Menyinkronkan database barcode dari Spreadsheet...</p>
         </div>
 
         <!-- 4. AREA SEARCH, FILTER CORONG, & TABEL CHECKER -->
@@ -309,14 +383,14 @@
             <!-- Baris Search Tabel & Ikon Filter Corong -->
             <div class="flex items-center justify-between gap-4 mb-2 relative">
                 <div class="relative w-full max-w-2xl">
-                    <input type="text" v-model="tableSearch" 
-                           @keydown.esc="tableSearch = ''"
-                           placeholder="Search nama barang, kode barcode, kategori, atau keterangan..." 
+                    <input ref="tableSearchInput" type="text" v-model="tableSearch" 
+                           @keydown.esc="clearTableSearch"
+                           placeholder="Cari nama barang, kode barcode, kategori, atau keterangan..." 
                            class="w-full border border-slate-300 px-3 py-1.5 pr-8 text-xs font-medium text-slate-700 focus:border-blue-600 outline-none rounded-sm">
-                    <button v-if="tableSearch" @click="tableSearch = ''" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 text-xs font-bold">✕</button>
+                    <button v-if="tableSearch" @click="clearTableSearch" title="Bersihkan Pencarian" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 text-xs font-bold">✕</button>
                 </div>
                 
-                <!-- Tombol Filter Ikon Corong -->
+                <!-- Tombol Filter Ikon Corong (Murni Simbol) -->
                 <div class="relative" @click.stop>
                     <button @click="showFilterMenu = !showFilterMenu" 
                             class="p-1.5 rounded hover:bg-slate-100 transition flex items-center gap-1"
@@ -348,12 +422,12 @@
                             <select v-model="checkerFilter.status" class="w-full border border-slate-300 p-2 rounded-lg text-xs font-bold text-slate-700 outline-none">
                                 <option value="Semua">Semua Item</option>
                                 <option value="Kurang">Belum / Kurang (Kuning)</option>
-                                <option value="Pas">Pas (Hijau)</option>
+                                <option value="Pas">Klop / Pas (Hijau)</option>
                                 <option value="Berlebih">Berlebih (Merah)</option>
-                                <option value="Berketerangan">Memiliki Catatan/Keterangan</option>
+                                <option value="Berketerangan">Memiliki Keterangan</option>
                             </select>
                         </div>
-                        <button @click="showFilterMenu = false" class="bg-slate-800 text-white text-xs font-bold py-2 rounded-lg mt-1">Selesai</button>
+                        <button @click="showFilterMenu = false" class="bg-slate-800 text-white text-xs font-bold py-2 rounded-lg mt-1">Tutup</button>
                     </div>
                 </div>
             </div>
@@ -386,30 +460,29 @@
                             </td>
                             <td class="text-center text-base font-black">{{ item['Kuantitas'] || 0 }}</td>
                             
-                            <!-- UPDATE POIN 2 & 3: Edit Manual + Auto-Focus + Enter Setuju + Panah Atas/Bawah -->
+                            <!-- Klik Angka Fisik Langsung Tanpa Duplikasi Ikon Pensil -->
                             <td class="text-center">
                                 <div v-if="!item.editMode" @click="openManualEdit(item)" 
-                                     class="text-base font-black cursor-pointer hover:bg-yellow-200/80 py-1 px-2 rounded transition inline-flex items-center gap-1" 
-                                     title="Klik untuk ketik manual (Enter = OK, Panah ↑↓ = Ubah)">
-                                    <span>{{ item['Fisik'] }}</span>
-                                    <span class="text-xs opacity-50">✏️</span>
+                                     class="text-base font-black cursor-pointer hover:bg-blue-100/80 border border-transparent hover:border-blue-300 py-1 px-3 rounded-lg transition inline-block min-w-[44px]" 
+                                     title="Klik angka untuk ubah manual">
+                                    {{ item['Fisik'] }}
                                 </div>
                                 <div v-else class="flex items-center justify-center gap-1">
                                     <button @click="adjustFisik(item, -1)" class="bg-red-500 hover:bg-red-600 text-white w-6 h-7 rounded font-black text-xs shrink-0" title="Kurangi 1">-</button>
                                     
-                                    <input type="number" min="0" 
+                                    <input type="text" inputmode="numeric"
                                            v-focus-select
                                            :value="item['Fisik']"
                                            @input="onManualQtyInput(item, $event)"
                                            @keydown.up.prevent="adjustFisik(item, 1)"
                                            @keydown.down.prevent="adjustFisik(item, -1)"
-                                           @keydown.enter.prevent="closeManualEdit(item)"
-                                           @keydown.esc.prevent="closeManualEdit(item)"
+                                           @keydown.enter.prevent="closeManualEdit(item, true)"
+                                           @keydown.esc.prevent="closeManualEdit(item, false)"
                                            class="w-14 border-2 border-blue-600 rounded px-1 py-0.5 text-center font-black text-sm bg-white text-slate-900 outline-none">
                                     
                                     <button @click="adjustFisik(item, 1)" class="bg-emerald-500 hover:bg-emerald-600 text-white w-6 h-7 rounded font-black text-xs shrink-0" title="Tambah 1">+</button>
-                                    <button @click="setFisikZero(item)" class="bg-amber-500 hover:bg-amber-600 text-white px-1.5 h-7 rounded font-black text-[10px] shrink-0" title="Reset ke 0">0</button>
-                                    <button @click="closeManualEdit(item)" class="bg-slate-800 hover:bg-slate-700 text-white px-2 h-7 rounded text-[10px] font-bold shrink-0">OK</button>
+                                    <button @click="setFisikZero(item)" class="bg-amber-500 hover:bg-amber-600 text-white px-1.5 h-7 rounded font-black text-[10px] shrink-0" title="Bersihkan ke 0">0</button>
+                                    <button @click="closeManualEdit(item, true)" class="bg-slate-800 hover:bg-slate-700 text-white px-2 h-7 rounded text-[10px] font-bold shrink-0">OK</button>
                                 </div>
                             </td>
 
@@ -419,25 +492,26 @@
                                 </span>
                             </td>
 
-                            <!-- UPDATE POIN 1: Kolom Note/Keterangan Compact dengan Hover Tooltip & Popover Pilihan -->
+                            <!-- Kolom Note/Keterangan Compact dengan Simbol SVG Bersih -->
                             <td class="text-center relative" @click.stop>
                                 <div class="relative inline-block group">
                                     <button @click="toggleNoteMenu(item)"
+                                            :title="item['Keterangan'] ? `Keterangan: ${item['Keterangan']}` : 'Isi Keterangan Masalah'"
                                             class="w-8 h-8 rounded-lg flex items-center justify-center transition-all border relative"
                                             :class="item['Keterangan'] ? 'bg-red-100 border-red-400 text-red-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-100'">
-                                        <span class="text-sm">{{ item['Keterangan'] ? '📌' : '📝' }}</span>
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                        </svg>
                                         <span v-if="item['Keterangan']" class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-600 ring-2 ring-white"></span>
                                     </button>
 
-                                    <!-- Tooltip Muncul Saat Disorot Pointer (Hover) -->
                                     <div v-if="!item.showNoteMenu" 
                                          class="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute right-full mr-2 top-1/2 -translate-y-1/2 z-40 whitespace-nowrap bg-slate-900 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg shadow-lg">
-                                        {{ item['Keterangan'] ? `Keterangan: ${item['Keterangan']}` : 'Klik untuk isi keterangan masalah' }}
+                                        {{ item['Keterangan'] ? item['Keterangan'] : 'Pilih keterangan masalah' }}
                                     </div>
 
-                                    <!-- Popover Pilihan Keterangan Saat Diklik -->
                                     <div v-if="item.showNoteMenu" 
-                                         class="absolute right-0 mt-1.5 w-44 bg-white border-2 border-slate-300 rounded-xl shadow-2xl p-1.5 z-50 text-left">
+                                         class="absolute right-0 mt-1.5 w-48 bg-white border-2 border-slate-300 rounded-xl shadow-2xl p-1.5 z-50 text-left">
                                         <div class="text-[10px] font-extrabold text-slate-400 uppercase px-2.5 py-1 border-b border-slate-100">
                                             Pilih Keterangan
                                         </div>
@@ -446,12 +520,11 @@
                                                 class="w-full text-left px-2.5 py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-between"
                                                 :class="item['Keterangan'] === opt ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50'">
                                             <span>{{ opt }}</span>
-                                            <span v-if="item['Keterangan'] === opt">✓</span>
                                         </button>
                                         <button v-if="item['Keterangan']"
                                                 @click="setKeterangan(item, '')"
                                                 class="w-full text-left px-2.5 py-1.5 mt-1 border-t border-slate-100 text-[11px] font-bold text-red-600 hover:bg-red-50 rounded-lg">
-                                            ✕ Hapus Keterangan
+                                            Hapus Keterangan
                                         </button>
                                     </div>
                                 </div>
@@ -464,25 +537,117 @@
             <!-- Box Empty State -->
             <div v-if="sortedCheckerItems.length === 0" 
                  class="text-center py-14 px-6 border-2 border-dashed border-slate-200 mt-4 rounded-2xl bg-[#f8fafc]">
-                <p class="text-lg font-extrabold text-[#334155] mb-1">
-                    Silakan pilih Gudang Tujuan dan No. Pemindahan di atas.
-                </p>
-                <p class="text-xs font-medium text-slate-400">
-                    Tabel akan secara otomatis menampilkan daftar barang yang sesuai.
-                </p>
+                <template v-if="tableSearch || checkerFilter.kategori !== 'Semua Kategori' || checkerFilter.status !== 'Semua'">
+                    <p class="text-base font-extrabold text-[#334155] mb-1">
+                        Barang tidak ditemukan pada pencarian/filter saat ini.
+                    </p>
+                    <p class="text-xs font-medium text-slate-400 mb-3">
+                        Bersihkan filter untuk kembali melihat seluruh barang tanpa memuat ulang halaman.
+                    </p>
+                    <button @click="clearAllTableFilters" class="bg-slate-900 text-white text-xs font-extrabold px-4 py-2 rounded-xl">
+                        Bersihkan Pencarian &amp; Filter
+                    </button>
+                </template>
+                <template v-else>
+                    <p class="text-lg font-extrabold text-[#334155] mb-1">
+                        Silakan pilih Cabang Tujuan dan No. Pemindahan di atas.
+                    </p>
+                    <p class="text-xs font-medium text-slate-400">
+                        Klik tombol "Tarik Data" di kanan atas apabila perlu menarik data terbaru dari Spreadsheet.
+                    </p>
+                </template>
             </div>
 
         </main>
 
-        <!-- 5. MODAL POPUP REKAP SELISIH (DENGAN EDIT KUANTITAS & KETERANGAN) -->
-        <div v-if="showRekapModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" @keydown.esc="showRekapModal = false">
+        <!-- ============================================================== -->
+        <!-- BOTTOM SHEET MENU NAVIGASI ANTAR PORTAL (C -> A atau B)        -->
+        <!-- ============================================================== -->
+        <div class="fixed inset-0 bg-black/60 z-40 transition-opacity duration-300" 
+             :class="portalMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'" 
+             @click="portalMenuOpen = false"></div>
+        <div @click.stop class="bottom-sheet fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#d4e157] rounded-t-3xl p-7 z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.3)]" 
+             :class="portalMenuOpen ? 'sheet-visible' : 'sheet-hidden'">
+            <div class="w-16 h-1.5 bg-black/20 rounded-full mx-auto mb-5"></div>
+            <p class="text-center text-xs font-extrabold uppercase tracking-wider text-slate-800 mb-4">
+                Navigasi Antar Portal Vapeboss
+            </p>
+            <div class="space-y-4 flex flex-col items-center">
+                <!-- Menuju Script A (Halaman Utama) -->
+                <a :href="config.homeUrl" 
+                   class="w-full max-w-[280px] border-y-4 border-slate-900 py-2.5 text-slate-900 font-bold text-xl font-serif tracking-wide hover:bg-black/5 transition-colors text-center no-underline block">
+                    Halaman Utama (A)
+                    <span class="block text-[10px] font-sans font-bold text-slate-700 uppercase tracking-wider">Homepage Utama</span>
+                </a>
+
+                <!-- Menuju Script A langsung ke view List Rute (?view=rute) -->
+                <a :href="rutePortalAUrl" 
+                   class="w-full max-w-[280px] border-y-4 border-red-600 py-2.5 text-red-600 font-bold text-2xl font-serif tracking-wide hover:bg-black/5 transition-colors text-center no-underline block">
+                    List Rute (A)
+                    <span class="block text-[10px] font-sans font-bold text-red-800 uppercase tracking-wider">Buka Daftar Rute di Portal A</span>
+                </a>
+
+                <!-- Menuju Script B (Portal Picker) -->
+                <a :href="config.pickerUrl" 
+                   class="w-full max-w-[280px] border-y-4 border-red-600 py-2.5 text-red-600 font-bold text-2xl font-serif tracking-wide hover:bg-black/5 transition-colors text-center no-underline block">
+                    Portal Picker (B)
+                    <span class="block text-[10px] font-sans font-bold text-red-800 uppercase tracking-wider">Batch Picking &amp; Jam Ambil</span>
+                </a>
+
+                <!-- Tetap di Script C (Portal Checker) -->
+                <button @click="portalMenuOpen = false" 
+                        class="w-full max-w-[280px] border-y-4 border-blue-700 py-2.5 text-blue-800 font-bold text-2xl font-serif tracking-wide hover:bg-black/5 transition-colors text-center">
+                    Portal Checker (C)
+                    <span class="block text-[10px] font-sans font-bold text-blue-900 uppercase tracking-wider">Portal Checker Aktif</span>
+                </button>
+            </div>
+            <div class="mt-5 text-center">
+                <button @click="portalMenuOpen = false" class="text-xs font-extrabold text-slate-800 hover:text-black underline">
+                    Tutup Menu
+                </button>
+            </div>
+        </div>
+
+        <!-- MODAL KONFIGURASI LINK REPOSITORI GITHUB (A, B, C) -->
+        <div v-if="showConfigModal" @click.stop class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-200">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
+                    <h3 class="font-extrabold text-sm text-slate-800 uppercase">Link Antar Portal (A, B, C)</h3>
+                    <button @click="showConfigModal = false" class="text-slate-400 hover:text-slate-700 font-black">✕</button>
+                </div>
+                <div class="space-y-3 text-left">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">URL Portal A (Homepage &amp; List Rute)</label>
+                        <input type="text" v-model="config.homeUrl" 
+                               class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:border-blue-600 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">URL Portal B (Portal Picker)</label>
+                        <input type="text" v-model="config.pickerUrl" 
+                               class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:border-blue-600 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">URL Portal C (Portal Checker)</label>
+                        <input type="text" v-model="config.checkerUrl" 
+                               class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:border-blue-600 outline-none">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 mt-5 pt-3 border-t border-slate-100">
+                    <button @click="resetConfig" class="px-3 py-2 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-100">Reset Default</button>
+                    <button @click="saveConfig" class="px-4 py-2 rounded-lg text-xs font-extrabold bg-slate-900 text-white hover:bg-slate-800">Simpan Link</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. MODAL POPUP REKAP SELISIH -->
+        <div v-if="showRekapModal" @click.stop class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" @keydown.esc="showRekapModal = false">
             <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
                 <div class="bg-slate-800 text-white px-6 py-4 flex justify-between items-center">
                     <div>
                         <h3 class="font-black text-base uppercase tracking-wider">Rekap Barang Berselisih / Bermasalah</h3>
-                        <p class="text-[11px] text-slate-300 mt-0.5">Ubah Fisik (Panah ↑↓ / Ketik) atau pilih Keterangan langsung di bawah ini</p>
+                        <p class="text-[11px] text-slate-300 mt-0.5">Ubah Fisik atau pilih Keterangan langsung di bawah ini</p>
                     </div>
-                    <button @click="showRekapModal = false" class="text-slate-400 hover:text-white font-black text-xl">✕</button>
+                    <button @click="showRekapModal = false" title="Tutup" class="text-slate-400 hover:text-white font-black text-xl">✕</button>
                 </div>
                 <div class="p-6 overflow-y-auto flex-1 bg-slate-50">
                     <table v-if="rekapSelisihList.length > 0" class="w-full checker-table border-collapse bg-white shadow-sm rounded-lg overflow-hidden">
@@ -503,19 +668,18 @@
                                 </td>
                                 <td class="text-center font-black text-base text-slate-800">{{ item['Kuantitas'] || 0 }}</td>
                                 
-                                <!-- Edit Fisik di Modal Rekap (Mendukung Panah Atas/Bawah & Enter) -->
                                 <td class="text-center">
                                     <div class="inline-flex items-center justify-center gap-1">
                                         <button @click="adjustFisik(item, -1)" class="bg-red-500 hover:bg-red-600 text-white w-7 h-7 rounded font-black text-sm">-</button>
-                                        <input type="number" min="0" 
+                                        <input type="text" inputmode="numeric"
                                                :value="item['Fisik']"
                                                @input="onManualQtyInput(item, $event)"
                                                @keydown.up.prevent="adjustFisik(item, 1)"
                                                @keydown.down.prevent="adjustFisik(item, -1)"
-                                               @keydown.enter.prevent="$event.target.blur()"
+                                               @keydown.enter.prevent="playItemStatusSound(item); $event.target.blur()"
                                                class="w-16 border-2 border-slate-300 focus:border-blue-600 rounded px-1 py-1 text-center font-black text-sm bg-white text-slate-900 outline-none">
                                         <button @click="adjustFisik(item, 1)" class="bg-emerald-500 hover:bg-emerald-600 text-white w-7 h-7 rounded font-black text-sm">+</button>
-                                        <button @click="setFisikZero(item)" class="bg-amber-500 hover:bg-amber-600 text-white px-2 h-7 rounded font-black text-[10px]" title="Reset ke 0">0</button>
+                                        <button @click="setFisikZero(item)" class="bg-amber-500 hover:bg-amber-600 text-white px-2 h-7 rounded font-black text-[10px]" title="Bersihkan ke 0">0</button>
                                     </div>
                                 </td>
 
@@ -523,7 +687,6 @@
                                     {{ formatDiff(item) }}
                                 </td>
 
-                                <!-- Pilih Keterangan di Modal Rekap -->
                                 <td class="text-center">
                                     <select :value="item['Keterangan'] || ''" 
                                             @change="setKeterangan(item, $event.target.value)"
@@ -536,16 +699,15 @@
                             </tr>
                         </tbody>
                     </table>
-                    <div v-else class="text-center py-12 text-emerald-600 border-2 border-dashed border-emerald-200 rounded-2xl bg-emerald-50/50">
-                        <span class="text-3xl block mb-2">✅</span>
-                        <p class="font-black text-lg uppercase">Luar Biasa!</p>
-                        <p class="text-xs font-medium mt-1">Tidak ada selisih, semua data fisik pas dengan target.</p>
+                    <div v-else class="text-center py-12 text-emerald-700 border-2 border-dashed border-emerald-200 rounded-2xl bg-emerald-50/50">
+                        <p class="font-black text-lg uppercase">Semua Kuantitas Klop</p>
+                        <p class="text-xs font-medium mt-1">Tidak ada selisih, seluruh data fisik pas dengan target.</p>
                     </div>
                 </div>
                 <div class="bg-white px-6 py-4 flex justify-between items-center border-t border-slate-200">
                     <span class="text-xs font-semibold text-slate-500">Total Item: <strong>{{ rekapSelisihList.length }} SKU</strong></span>
                     <button @click="showRekapModal = false" class="bg-slate-800 text-white px-6 py-2.5 rounded-xl font-bold text-xs hover:bg-slate-700">
-                        Tutup Jendela (ESC)
+                        Tutup Jendela
                     </button>
                 </div>
             </div>
@@ -558,19 +720,32 @@
 
         const app = createApp({
             data() {
+                let savedForm = null;
+                let savedLock = false;
+                let savedProg = {};
+                let savedConfig = null;
+                let cachedItems = [];
+                try {
+                    savedForm = JSON.parse(localStorage.getItem('checkerForm_v2'));
+                    savedLock = JSON.parse(localStorage.getItem('isCheckerLocked_v2')) || false;
+                    savedProg = JSON.parse(localStorage.getItem('checkerProgress_v4')) || {};
+                    savedConfig = JSON.parse(localStorage.getItem('vapeboss_portal_links_v2'));
+                    cachedItems = JSON.parse(localStorage.getItem('checkerItemsCache_v1')) || [];
+                } catch (e) {}
+
                 return {
                     apiUrl: 'https://script.google.com/macros/s/AKfycbw-Hlly2gks4HjfRIdD0xL3l7Uhc7I-R2dRaGWYgFMY7qkhRWOYLcSQuEuqHCMLnnsL/exec',
                     loading: false,
                     isSaving: false,
                     saveStatusText: 'Menyimpan...',
                     
-                    checkerItems: [],
-                    checkerForm: JSON.parse(localStorage.getItem('checkerForm_v2')) || { cabang: '', noIt: '', pic: '' },
-                    isCheckerLocked: JSON.parse(localStorage.getItem('isCheckerLocked_v2')) || false,
-                    savedProgress: JSON.parse(localStorage.getItem('checkerProgress_v4')) || {},
+                    checkerItems: cachedItems,
+                    checkerForm: savedForm || { cabang: '', noIt: '', pic: '' },
+                    isCheckerLocked: savedLock,
+                    savedProgress: savedProg,
                     checkerFilter: { kategori: 'Semua Kategori', status: 'Semua' },
                     
-                    keteranganOptions: ['Barang Tidak Ada', 'Bocor', 'Tukar Jual'],
+                    keteranganOptions: ['Barang Tidak Ada', 'Tukar Jual', 'Bocor', 'Qty Tidak Sesuai'],
                     
                     currentScan: '',
                     currentScanQty: '',
@@ -579,22 +754,41 @@
                     tableSearch: '',
                     scanErrorAnim: false,
                     
+                    portalMenuOpen: false,
+                    showConfigModal: false,
                     showGudangList: false,
                     showNoItList: false,
                     showFilterMenu: false,
                     showRekapModal: false,
+                    barcodeWarningModal: {
+                        show: false,
+                        scannedValue: '',
+                        message: '',
+                        matchedItem: null
+                    },
                     toasts: [],
                     audioCtx: null,
-                    storageTimer: null
-                }
+                    storageTimer: null,
+                    config: savedConfig || {
+                        homeUrl: 'https://byteandbay.github.io/portal-utama/',
+                        pickerUrl: 'https://byteandbay.github.io/picker-webapp/',
+                        checkerUrl: 'https://byteandbay.github.io/portal-checker/'
+                    }
+                };
             },
             watch: {
                 checkerForm: {
                     deep: true,
-                    handler(newVal) { localStorage.setItem('checkerForm_v2', JSON.stringify(newVal)); }
+                    handler(newVal) {
+                        try {
+                            localStorage.setItem('checkerForm_v2', JSON.stringify(newVal));
+                        } catch (e) {}
+                    }
                 },
                 isCheckerLocked(newVal) {
-                    localStorage.setItem('isCheckerLocked_v2', JSON.stringify(newVal));
+                    try {
+                        localStorage.setItem('isCheckerLocked_v2', JSON.stringify(newVal));
+                    } catch (e) {}
                 },
                 currentScan() {
                     this.$nextTick(() => {
@@ -607,6 +801,11 @@
                 }
             },
             computed: {
+                rutePortalAUrl() {
+                    const base = (this.config.homeUrl || '').trim();
+                    const sep = base.includes('?') ? '&' : '?';
+                    return `${base}${sep}view=rute`;
+                },
                 dynamicGudangList() {
                     if (!this.checkerItems.length) return [];
                     const set = new Set(this.checkerItems.map(i => i['Gudang Tujuan/Dari']));
@@ -625,7 +824,6 @@
                         i['No. Pemindahan #'] === this.checkerForm.noIt
                     );
                 },
-                // OPTIMASI ANTI-LAG (POIN 5): Hash Map O(1) untuk pencarian Barcode & Nama Barang secara instan
                 routeLookupMap() {
                     const byCode = new Map();
                     const byName = new Map();
@@ -721,7 +919,69 @@
                     return results;
                 }
             },
+            mounted() {
+                // Jika sudah ada data di cache lokal, langsung pasang progres terbaru tanpa harus refresh dari server
+                if (this.checkerItems.length > 0) {
+                    this.applySavedProgressToMemory();
+                }
+            },
             methods: {
+                hideGudangDropdownDelayed() {
+                    setTimeout(() => { this.showGudangList = false; }, 200);
+                },
+                hideNoItDropdownDelayed() {
+                    setTimeout(() => { this.showNoItList = false; }, 200);
+                },
+                clearPicSelection() {
+                    this.checkerForm.pic = '';
+                    this.$nextTick(() => {
+                        if (this.$refs.picInput) this.$refs.picInput.focus();
+                    });
+                },
+                clearCabangSelection() {
+                    this.checkerForm.cabang = '';
+                    this.checkerForm.noIt = '';
+                    this.showGudangList = true;
+                    this.$nextTick(() => {
+                        if (this.$refs.gudangInput) this.$refs.gudangInput.focus();
+                    });
+                },
+                clearNoItSelection() {
+                    this.checkerForm.noIt = '';
+                    this.showNoItList = true;
+                    this.$nextTick(() => {
+                        if (this.$refs.noItInput) this.$refs.noItInput.focus();
+                    });
+                },
+                clearTableSearch() {
+                    this.tableSearch = '';
+                    this.$nextTick(() => {
+                        if (this.$refs.tableSearchInput) this.$refs.tableSearchInput.focus();
+                    });
+                },
+                clearAllTableFilters() {
+                    this.tableSearch = '';
+                    this.checkerFilter.kategori = 'Semua Kategori';
+                    this.checkerFilter.status = 'Semua';
+                    this.$nextTick(() => {
+                        if (this.$refs.scanInput) this.$refs.scanInput.focus();
+                    });
+                },
+                saveConfig() {
+                    try {
+                        localStorage.setItem('vapeboss_portal_links_v2', JSON.stringify(this.config));
+                    } catch (e) {}
+                    this.showConfigModal = false;
+                    this.notify('success', 'Tautan Disimpan', 'Konfigurasi link antar portal berhasil diperbarui.');
+                },
+                resetConfig() {
+                    this.config = {
+                        homeUrl: 'https://byteandbay.github.io/portal-utama/',
+                        pickerUrl: 'https://byteandbay.github.io/picker-webapp/',
+                        checkerUrl: 'https://byteandbay.github.io/portal-checker/'
+                    };
+                    this.saveConfig();
+                },
                 notify(type, title, message = '') {
                     const id = Date.now() + Math.random();
                     this.toasts.push({ id, type, title, message });
@@ -737,6 +997,7 @@
                         setTimeout(() => this.scanErrorAnim = false, 400);
                     });
                 },
+
                 playSound(type) {
                     try {
                         if (!this.audioCtx) {
@@ -745,29 +1006,60 @@
                         if (this.audioCtx.state === 'suspended') {
                             this.audioCtx.resume();
                         }
-                        const osc = this.audioCtx.createOscillator();
-                        const gain = this.audioCtx.createGain();
-                        osc.connect(gain);
-                        gain.connect(this.audioCtx.destination);
-                        if (type === 'success') {
-                            osc.type = 'sine';
-                            osc.frequency.value = 840;
+                        const ctx = this.audioCtx;
+                        const now = ctx.currentTime;
+
+                        const playTone = (freq, oscType, startTime, duration, maxGain = 0.22) => {
+                            const osc = ctx.createOscillator();
+                            const gain = ctx.createGain();
+                            osc.type = oscType;
+                            osc.frequency.setValueAtTime(freq, startTime);
+                            gain.gain.setValueAtTime(maxGain, startTime);
+                            gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+                            osc.connect(gain);
+                            gain.connect(ctx.destination);
+                            osc.start(startTime);
+                            osc.stop(startTime + duration);
+                        };
+
+                        if (type === 'klop') {
+                            playTone(523.25, 'sine', now, 0.09, 0.22);
+                            playTone(659.25, 'sine', now + 0.08, 0.09, 0.22);
+                            playTone(783.99, 'sine', now + 0.16, 0.09, 0.24);
+                            playTone(1046.50, 'triangle', now + 0.24, 0.26, 0.28);
+                        } else if (type === 'kurang') {
+                            playTone(440, 'triangle', now, 0.11, 0.2);
+                            playTone(370, 'triangle', now + 0.13, 0.16, 0.2);
+                        } else if (type === 'lebih') {
+                            playTone(880, 'sawtooth', now, 0.11, 0.24);
+                            playTone(620, 'sawtooth', now + 0.12, 0.11, 0.24);
+                            playTone(880, 'sawtooth', now + 0.24, 0.15, 0.26);
                         } else {
-                            osc.type = 'sawtooth';
-                            osc.frequency.value = 150;
+                            playTone(160, 'sawtooth', now, 0.18, 0.28);
+                            playTone(130, 'sawtooth', now + 0.20, 0.25, 0.28);
                         }
-                        osc.start();
-                        gain.gain.exponentialRampToValueAtTime(0.00001, this.audioCtx.currentTime + 0.22);
-                        osc.stop(this.audioCtx.currentTime + 0.22);
                     } catch (e) {}
                 },
+
+                playItemStatusSound(item) {
+                    if (!item) return;
+                    const target = Number(item['Kuantitas']) || 0;
+                    const fisik = Number(item['Fisik']) || 0;
+                    if (fisik === target && target > 0) {
+                        this.playSound('klop');
+                    } else if (fisik > target) {
+                        this.playSound('lebih');
+                    } else {
+                        this.playSound('kurang');
+                    }
+                },
+
                 isMostRecent(item) {
                     return this.lastScannedItem && this.lastScannedItem['Kode Barang'] === item['Kode Barang'] && item.lastUpdated > 0;
                 },
                 getStorageKey(item) {
                     return `${item['Gudang Tujuan/Dari']}__${item['No. Pemindahan #']}__${item['Kode Barang']}`;
                 },
-                // OPTIMASI POIN 5: Asynchronous Debounced LocalStorage (Anti-Freeze)
                 persistItemState(item) {
                     const key = this.getStorageKey(item);
                     if (item['Fisik'] > 0 || item.lastUpdated > 0 || item['Keterangan']) {
@@ -787,7 +1079,6 @@
                     }, 250);
                 },
 
-                // UPDATE POIN 1: Fungsi Keterangan / Note
                 toggleNoteMenu(item) {
                     const current = item.showNoteMenu;
                     this.closeAllNoteMenus();
@@ -800,6 +1091,7 @@
                         }
                     }
                     this.showFilterMenu = false;
+                    this.portalMenuOpen = false;
                 },
                 setKeterangan(item, value) {
                     item['Keterangan'] = value;
@@ -808,21 +1100,23 @@
                     this.persistItemState(item);
                 },
 
-                // UPDATE POIN 2, 3, & 4: Edit Manual + Panah Atas/Bawah + Enter + Proteksi > 4 Digit
                 openManualEdit(item) {
                     this.routeItems.forEach(i => { if (i !== item) i.editMode = false; });
                     item.editMode = true;
                 },
-                closeManualEdit(item) {
+                closeManualEdit(item, playFeedback = false) {
                     item.editMode = false;
+                    if (playFeedback) {
+                        this.playItemStatusSound(item);
+                    }
                     this.$nextTick(() => { if (this.$refs.scanInput) this.$refs.scanInput.focus(); });
                 },
                 onManualQtyInput(item, event) {
-                    const rawVal = String(event.target.value).trim();
-                    // UPDATE POIN 4: Batas > 4 digit (5 digit ke atas diblokir sebagai salah scan barcode)
+                    const rawVal = String(event.target.value || '').trim();
                     if (rawVal.length > 4) {
                         this.playSound('error');
-                        this.notify('error', 'Terdeteksi Barcode (>4 Digit)!', 'Input melebihi 4 digit dibatalkan otomatis.');
+                        this.triggerErrorShake();
+                        this.openBarcodeWarningModal(rawVal, 'Input manual pada tabel melebihi 4 digit (terdeteksi sebagai scan barcode). Angka telah dibersihkan kembali ke nilai sebelumnya tanpa perlu refresh halaman.');
                         event.target.value = item['Fisik'];
                         return;
                     }
@@ -839,23 +1133,25 @@
                     item.lastUpdated = Date.now();
                     this.lastScannedItem = item;
                     this.persistItemState(item);
+                    this.playItemStatusSound(item);
                 },
                 setFisikZero(item) {
                     item['Fisik'] = 0;
                     item.lastUpdated = Date.now();
                     this.lastScannedItem = item;
                     this.persistItemState(item);
+                    this.playSound('kurang');
                 },
 
-                // UPDATE POIN 3: Panah Atas/Bawah pada Kolom Input Kuantitas Utama
                 stepScanQty(delta) {
                     const current = parseInt(this.currentScanQty, 10) || 0;
                     const next = current + delta;
                     if (next >= 1 && next <= 9999) {
-                        this.currentScanQty = next;
+                        this.currentScanQty = String(next);
                     }
                 },
 
+                // Bersihkan input scan tanpa reload halaman
                 cancelCurrentScan() {
                     this.currentScan = '';
                     this.currentScanQty = '';
@@ -894,6 +1190,7 @@
                     this.suggestionIndex = -1;
                     this.$nextTick(() => { this.moveToQty(); });
                 },
+
                 moveToQty() {
                     if (!this.checkerForm.cabang || !this.checkerForm.noIt) {
                         this.playSound('error');
@@ -905,56 +1202,110 @@
                     if (!this.currentScan) return;
 
                     if (this.foundItemLive) {
-                        this.currentScanQty = 1;
+                        this.currentScanQty = '1';
                         this.$nextTick(() => {
-                            this.$refs.qtyInput.focus();
-                            this.$refs.qtyInput.select();
+                            if (this.$refs.qtyInput) {
+                                this.$refs.qtyInput.focus();
+                                this.$refs.qtyInput.select();
+                            }
                         });
                     } else {
+                        // Jika salah scan / barang tidak ada: bersihkan input & tetap fokus di kolom scan tanpa refresh halaman
                         this.playSound('error');
                         this.triggerErrorShake();
-                        this.notify('error', 'Barang Tidak Ditemukan!', `"${this.currentScan}" tidak terdaftar pada rute ini.`);
+                        this.notify('error', 'Barang Tidak Ditemukan!', `"${this.currentScan}" telah dibersihkan otomatis. Silakan scan/input barang yang benar.`);
                         this.currentScan = '';
+                        this.$nextTick(() => {
+                            if (this.$refs.scanInput) this.$refs.scanInput.focus();
+                        });
                     }
                 },
 
-                // UPDATE POIN 4: Anti-Barcode > 4 Digit di Kolom Input Kuantitas
+                openBarcodeWarningModal(rawVal, customMessage = '') {
+                    const matched = this.routeLookupMap.byCode.get(String(rawVal).trim().toLowerCase()) || null;
+                    this.barcodeWarningModal = {
+                        show: true,
+                        scannedValue: rawVal,
+                        matchedItem: matched,
+                        message: customMessage || (
+                            matched
+                                ? `Anda tidak sengaja melakukan scan barcode barang "${matched['Nama Barang']}" di dalam kolom Kuantitas (>4 digit). Input salah telah dibersihkan otomatis tanpa memuat ulang halaman.`
+                                : `Kolom Kuantitas menerima input lebih dari 4 digit (${rawVal.length} karakter). Sistem telah membersihkan input tersebut agar Anda bisa langsung mengisi kuantitas yang benar.`
+                        )
+                    };
+                    this.$nextTick(() => {
+                        if (this.$refs.warningOkBtn) this.$refs.warningOkBtn.focus();
+                    });
+                },
+                dismissBarcodeWarningModal() {
+                    this.barcodeWarningModal.show = false;
+                    this.currentScanQty = '1';
+                    this.$nextTick(() => {
+                        if (this.$refs.qtyInput) {
+                            this.$refs.qtyInput.focus();
+                            this.$refs.qtyInput.select();
+                        }
+                    });
+                },
+                switchFromQtyBarcodeWarning() {
+                    const matched = this.barcodeWarningModal.matchedItem;
+                    this.barcodeWarningModal.show = false;
+                    if (matched) {
+                        this.currentScan = matched['Kode Barang'];
+                        this.currentScanQty = '1';
+                        this.$nextTick(() => {
+                            if (this.$refs.qtyInput) {
+                                this.$refs.qtyInput.focus();
+                                this.$refs.qtyInput.select();
+                            }
+                        });
+                    }
+                },
+                onScanQtyLiveInput() {
+                    const cleaned = String(this.currentScanQty || '').trim();
+                    if (cleaned.length > 4) {
+                        this.playSound('error');
+                        this.triggerErrorShake();
+                        this.notify('error', 'Peringatan: Input > 4 Digit!', 'Input dibersihkan otomatis. Silakan ketik kuantitas yang benar.');
+                        this.openBarcodeWarningModal(cleaned);
+                        this.currentScanQty = '1';
+                    }
+                },
+
                 submitScan() {
+                    if (this.barcodeWarningModal.show) {
+                        this.dismissBarcodeWarningModal();
+                        return;
+                    }
                     if (!this.foundItemLive) return;
 
-                    const rawQtyStr = String(this.currentScanQty).trim();
+                    const rawQtyStr = String(this.currentScanQty || '').trim();
 
-                    // Jika lebih dari 4 digit (> 9999) atau cocok dengan barcode di database
-                    const matchedBarcodeItem = this.routeLookupMap.byCode.get(rawQtyStr.toLowerCase());
+                    if (rawQtyStr.length > 4 || Number(rawQtyStr) > 9999) {
+                        this.playSound('error');
+                        this.triggerErrorShake();
+                        this.notify('error', 'Peringatan: Input > 4 Digit!', `Input "${rawQtyStr}" telah dibersihkan otomatis.`);
+                        this.openBarcodeWarningModal(rawQtyStr);
+                        this.currentScanQty = '1';
+                        return;
+                    }
 
-                    if (rawQtyStr.length > 4 || Number(rawQtyStr) > 9999 || (rawQtyStr.length > 4 && matchedBarcodeItem)) {
-                        if (matchedBarcodeItem) {
-                            this.playSound('error');
-                            this.notify('warning', 'Terdeteksi Scan Barcode Baru!', `Kuantitas dibatalkan. Beralih ke: ${matchedBarcodeItem['Nama Barang']}`);
-                            this.currentScan = matchedBarcodeItem['Kode Barang'];
-                            this.currentScanQty = 1;
-                            this.$nextTick(() => {
+                    const parsedQty = parseInt(rawQtyStr, 10);
+                    if (isNaN(parsedQty) || parsedQty <= 0) {
+                        this.playSound('error');
+                        this.notify('warning', 'Kuantitas Tidak Valid', 'Input telah direset ke 1. Masukkan angka antara 1 sampai 9999.');
+                        this.currentScanQty = '1';
+                        this.$nextTick(() => {
+                            if (this.$refs.qtyInput) {
                                 this.$refs.qtyInput.focus();
                                 this.$refs.qtyInput.select();
-                            });
-                            return;
-                        } else {
-                            this.playSound('error');
-                            this.triggerErrorShake();
-                            this.notify('error', 'Ditolak (> 4 Digit)!', `Input "${rawQtyStr}" terdeteksi sebagai barcode (>4 digit) dan telah dibatalkan.`);
-                            this.currentScanQty = 1;
-                            this.$nextTick(() => {
-                                this.$refs.qtyInput.focus();
-                                this.$refs.qtyInput.select();
-                            });
-                            return;
-                        }
+                            }
+                        });
+                        return;
                     }
 
                     const item = this.foundItemLive;
-                    const qtyToAdd = Number(rawQtyStr) > 0 ? Number(rawQtyStr) : 1;
-                    
-                    item['Fisik'] += qtyToAdd;
+                    item['Fisik'] = (Number(item['Fisik']) || 0) + parsedQty;
                     item.lastUpdated = Date.now();
                     this.lastScannedItem = item;
                     this.persistItemState(item);
@@ -962,42 +1313,65 @@
                     item.highlight = false;
                     this.$nextTick(() => {
                         item.highlight = true;
-                        setTimeout(() => item.highlight = false, 1500);
+                        setTimeout(() => { item.highlight = false; }, 1500);
                     });
 
-                    if (item['Fisik'] > (item['Kuantitas'] || 0)) {
-                        this.playSound('error');
-                        this.notify('warning', 'Kuantitas Berlebih!', `${item['Nama Barang']} melebihi target.`);
+                    const target = Number(item['Kuantitas']) || 0;
+                    if (item['Fisik'] > target) {
+                        this.playSound('lebih');
+                        this.notify('warning', 'Kuantitas Berlebih!', `${item['Nama Barang']} (${item['Fisik']}/${target}) melebihi target.`);
+                    } else if (item['Fisik'] === target && target > 0) {
+                        this.playSound('klop');
+                        this.notify('success', 'Kuantitas Klop!', `${item['Nama Barang']} pas ${target} Pcs.`);
                     } else {
-                        this.playSound('success');
+                        this.playSound('kurang');
                     }
 
                     this.currentScan = '';
                     this.currentScanQty = '';
                     this.suggestionIndex = -1;
-                    this.$nextTick(() => { this.$refs.scanInput.focus(); });
+                    this.$nextTick(() => {
+                        if (this.$refs.scanInput) this.$refs.scanInput.focus();
+                    });
                 },
 
                 formatDiff(item) {
-                    const diff = item['Fisik'] - (item['Kuantitas'] || 0);
+                    if (!item) return 0;
+                    const diff = (Number(item['Fisik']) || 0) - (Number(item['Kuantitas']) || 0);
                     return diff > 0 ? `+${diff}` : diff;
                 },
                 getDiffTextClass(item) {
-                    const diff = item['Fisik'] - (item['Kuantitas'] || 0);
+                    if (!item) return 'text-slate-600';
+                    const diff = (Number(item['Fisik']) || 0) - (Number(item['Kuantitas']) || 0);
                     if (diff < 0) return 'text-red-600';
                     if (diff > 0) return 'text-purple-700';
                     return 'text-emerald-600';
                 },
                 getRowColor(item) {
-                    const qty = item['Kuantitas'] || 0;
-                    const fisik = item['Fisik'];
+                    const qty = Number(item['Kuantitas']) || 0;
+                    const fisik = Number(item['Fisik']) || 0;
                     if (fisik === 0 && !item['Keterangan']) return 'row-white';
                     if (fisik > qty) return 'row-red';
                     if (fisik === qty && qty > 0) return 'row-green';
                     return 'row-yellow';
                 },
 
-                // UPDATE POIN 5: Helper Fetch dengan Auto-Retry & Exponential Jitter Backoff (Tahan 20 User Concurrent)
+                applySavedProgressToMemory() {
+                    this.checkerItems = this.checkerItems.map(item => {
+                        const key = `${item['Gudang Tujuan/Dari']}__${item['No. Pemindahan #']}__${item['Kode Barang']}`;
+                        const saved = this.savedProgress[key];
+                        return {
+                            ...item,
+                            'Fisik': saved ? (saved.fisik || 0) : (item['Fisik'] || 0),
+                            'Keterangan': saved ? (saved.keterangan || '') : (item['Keterangan'] || ''),
+                            'lastUpdated': saved ? (saved.lastUpdated || 0) : (item['lastUpdated'] || 0),
+                            'editMode': false,
+                            'showNoteMenu': false,
+                            'highlight': false
+                        };
+                    });
+                },
+
                 async fetchWithRetry(url, options = {}, maxRetries = 4) {
                     for (let attempt = 1; attempt <= maxRetries; attempt++) {
                         try {
@@ -1010,7 +1384,6 @@
                             return json;
                         } catch (err) {
                             if (attempt === maxRetries) throw err;
-                            // Jeda acak (800ms - 2500ms) agar 20 orang tidak menabrak server di milidetik yang sama lagi
                             const delay = Math.min(1000 * Math.pow(1.6, attempt - 1) + Math.random() * 600, 6000);
                             await new Promise(r => setTimeout(r, delay));
                         }
@@ -1035,7 +1408,10 @@
                                     'highlight': false
                                 };
                             });
-                            this.notify('success', 'Data Berhasil Ditarik', `${this.checkerItems.length} item siap digunakan.`);
+                            try {
+                                localStorage.setItem('checkerItemsCache_v1', JSON.stringify(this.checkerItems));
+                            } catch (e) {}
+                            this.notify('success', 'Data Berhasil Ditarik', `${this.checkerItems.length} item terbaru dari Spreadsheet siap digunakan.`);
                         } else {
                             this.notify('error', 'Gagal dari Server', result.message);
                         }
@@ -1048,7 +1424,7 @@
                 },
 
                 async saveCheckerData() {
-                    if (this.isSaving) return; // Cegah double click
+                    if (this.isSaving) return;
                     if (!this.checkerForm.pic || !this.checkerForm.cabang || !this.checkerForm.noIt) {
                         this.notify('warning', 'Data Belum Lengkap', 'Harap isi PIC Checker, Cabang Tujuan, dan No. Pemindahan.');
                         return;
@@ -1061,7 +1437,7 @@
                         target: i['Kuantitas'] || 0,
                         fisik: i['Fisik'],
                         selisih: i['Fisik'] - (i['Kuantitas'] || 0),
-                        keterangan: i['Keterangan'] || '' // Kolom keterangan ikut dikirim ke Spreadsheet
+                        keterangan: i['Keterangan'] || ''
                     }));
 
                     if (dataToSave.length === 0) return;
@@ -1082,6 +1458,7 @@
                         }, 4);
 
                         if (result.status === 'success') {
+                            this.playSound('klop');
                             this.notify('success', 'Tersimpan Aman!', 'Hasil Checker & Keterangan berhasil dicatat di Server.');
                         } else {
                             this.notify('error', 'Gagal Menyimpan', result.message);
@@ -1096,7 +1473,6 @@
             }
         });
 
-        // Custom Directive agar saat klik Edit Fisik, input otomatis Focus & Select All
         app.directive('focus-select', {
             mounted(el) {
                 el.focus();
