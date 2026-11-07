@@ -920,12 +920,48 @@
                 }
             },
             mounted() {
-                // Jika sudah ada data di cache lokal, langsung pasang progres terbaru tanpa harus refresh dari server
                 if (this.checkerItems.length > 0) {
                     this.applySavedProgressToMemory();
                 }
             },
             methods: {
+                formatNowTimeStr() {
+                    const now = new Date();
+                    const pad = n => String(n).padStart(2, '0');
+                    return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+                },
+                formatNowDateStr() {
+                    const now = new Date();
+                    const pad = n => String(n).padStart(2, '0');
+                    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+                },
+                recordRealtimeAction(item, mode, detailText, mergeWindowMs = 0) {
+                    if (!item) return;
+                    const nowMs = Date.now();
+                    const timeStr = this.formatNowTimeStr();
+                    const dateStr = this.formatNowDateStr();
+
+                    if (!Array.isArray(item.scanTimestamps)) item.scanTimestamps = [];
+                    if (!Array.isArray(item.scanLogs)) item.scanLogs = [];
+                    item.scanDate = dateStr;
+
+                    const prevUpdated = item.lastUpdated || 0;
+                    if (
+                        mergeWindowMs > 0 &&
+                        item.scanTimestamps.length > 0 &&
+                        item.lastInputMode === mode &&
+                        (nowMs - prevUpdated) <= mergeWindowMs
+                    ) {
+                        item.scanTimestamps[item.scanTimestamps.length - 1] = timeStr;
+                        item.scanLogs[item.scanLogs.length - 1] = `${timeStr} (${detailText})`;
+                    } else {
+                        item.scanTimestamps.push(timeStr);
+                        item.scanLogs.push(`${timeStr} (${detailText})`);
+                    }
+
+                    item.lastInputMode = mode;
+                    item.lastUpdated = nowMs;
+                },
                 hideGudangDropdownDelayed() {
                     setTimeout(() => { this.showGudangList = false; }, 200);
                 },
@@ -1062,11 +1098,19 @@
                 },
                 persistItemState(item) {
                     const key = this.getStorageKey(item);
-                    if (item['Fisik'] > 0 || item.lastUpdated > 0 || item['Keterangan']) {
+                    if (
+                        item['Fisik'] > 0 ||
+                        item.lastUpdated > 0 ||
+                        item['Keterangan'] ||
+                        (Array.isArray(item.scanTimestamps) && item.scanTimestamps.length > 0)
+                    ) {
                         this.savedProgress[key] = {
                             fisik: item['Fisik'],
                             keterangan: item['Keterangan'] || '',
-                            lastUpdated: item.lastUpdated || 0
+                            lastUpdated: item.lastUpdated || 0,
+                            scanDate: item.scanDate || this.formatNowDateStr(),
+                            scanTimestamps: Array.isArray(item.scanTimestamps) ? item.scanTimestamps : [],
+                            scanLogs: Array.isArray(item.scanLogs) ? item.scanLogs : []
                         };
                     } else {
                         delete this.savedProgress[key];
@@ -1121,8 +1165,16 @@
                         return;
                     }
                     const parsed = parseInt(rawVal, 10);
-                    item['Fisik'] = isNaN(parsed) || parsed < 0 ? 0 : parsed;
-                    item.lastUpdated = Date.now();
+                    const nextFisik = isNaN(parsed) || parsed < 0 ? 0 : parsed;
+                    item['Fisik'] = nextFisik;
+                    if (nextFisik === 0) {
+                        item.scanTimestamps = [];
+                        item.scanLogs = [];
+                        item.lastInputMode = '';
+                        item.lastUpdated = Date.now();
+                    } else {
+                        this.recordRealtimeAction(item, 'MANUAL_TYPE', `Input Manual -> Fisik: ${nextFisik}`, 3500);
+                    }
                     this.lastScannedItem = item;
                     this.persistItemState(item);
                 },
@@ -1130,13 +1182,24 @@
                     const next = (Number(item['Fisik']) || 0) + delta;
                     if (next < 0 || next > 9999) return;
                     item['Fisik'] = next;
-                    item.lastUpdated = Date.now();
+                    if (next === 0) {
+                        item.scanTimestamps = [];
+                        item.scanLogs = [];
+                        item.lastInputMode = '';
+                        item.lastUpdated = Date.now();
+                    } else {
+                        const signStr = delta > 0 ? `+${delta}` : `${delta}`;
+                        this.recordRealtimeAction(item, 'MANUAL_BTN', `Manual ${signStr} -> Fisik: ${next}`, 2500);
+                    }
                     this.lastScannedItem = item;
                     this.persistItemState(item);
                     this.playItemStatusSound(item);
                 },
                 setFisikZero(item) {
                     item['Fisik'] = 0;
+                    item.scanTimestamps = [];
+                    item.scanLogs = [];
+                    item.lastInputMode = '';
                     item.lastUpdated = Date.now();
                     this.lastScannedItem = item;
                     this.persistItemState(item);
@@ -1151,7 +1214,6 @@
                     }
                 },
 
-                // Bersihkan input scan tanpa reload halaman
                 cancelCurrentScan() {
                     this.currentScan = '';
                     this.currentScanQty = '';
@@ -1210,7 +1272,6 @@
                             }
                         });
                     } else {
-                        // Jika salah scan / barang tidak ada: bersihkan input & tetap fokus di kolom scan tanpa refresh halaman
                         this.playSound('error');
                         this.triggerErrorShake();
                         this.notify('error', 'Barang Tidak Ditemukan!', `"${this.currentScan}" telah dibersihkan otomatis. Silakan scan/input barang yang benar.`);
@@ -1306,7 +1367,8 @@
 
                     const item = this.foundItemLive;
                     item['Fisik'] = (Number(item['Fisik']) || 0) + parsedQty;
-                    item.lastUpdated = Date.now();
+                    // Catat setiap jam realtime saat checker menembakkan alat scan & menekan Enter (misal 11:00 dan 12:00)
+                    this.recordRealtimeAction(item, 'SCAN', `Scan +${parsedQty} -> Fisik: ${item['Fisik']}`, 0);
                     this.lastScannedItem = item;
                     this.persistItemState(item);
 
@@ -1365,6 +1427,10 @@
                             'Fisik': saved ? (saved.fisik || 0) : (item['Fisik'] || 0),
                             'Keterangan': saved ? (saved.keterangan || '') : (item['Keterangan'] || ''),
                             'lastUpdated': saved ? (saved.lastUpdated || 0) : (item['lastUpdated'] || 0),
+                            'scanDate': saved ? (saved.scanDate || '') : (item.scanDate || ''),
+                            'scanTimestamps': saved && Array.isArray(saved.scanTimestamps) ? [...saved.scanTimestamps] : (Array.isArray(item.scanTimestamps) ? [...item.scanTimestamps] : []),
+                            'scanLogs': saved && Array.isArray(saved.scanLogs) ? [...saved.scanLogs] : (Array.isArray(item.scanLogs) ? [...item.scanLogs] : []),
+                            'lastInputMode': '',
                             'editMode': false,
                             'showNoteMenu': false,
                             'highlight': false
@@ -1403,6 +1469,10 @@
                                     'Fisik': saved ? (saved.fisik || 0) : 0,
                                     'Keterangan': saved ? (saved.keterangan || '') : (item['Keterangan'] || ''),
                                     'lastUpdated': saved ? (saved.lastUpdated || 0) : 0,
+                                    'scanDate': saved ? (saved.scanDate || '') : '',
+                                    'scanTimestamps': saved && Array.isArray(saved.scanTimestamps) ? [...saved.scanTimestamps] : [],
+                                    'scanLogs': saved && Array.isArray(saved.scanLogs) ? [...saved.scanLogs] : [],
+                                    'lastInputMode': '',
                                     'editMode': false,
                                     'showNoteMenu': false,
                                     'highlight': false
@@ -1430,15 +1500,34 @@
                         return;
                     }
 
-                    const dataToSave = this.routeItems.map(i => ({
-                        kategori: i['Kategori'],
-                        kode_barang: i['Kode Barang'],
-                        nama_barang: i['Nama Barang'],
-                        target: i['Kuantitas'] || 0,
-                        fisik: i['Fisik'],
-                        selisih: i['Fisik'] - (i['Kuantitas'] || 0),
-                        keterangan: i['Keterangan'] || ''
-                    }));
+                    const todayStr = this.formatNowDateStr();
+                    const nowTimeFallback = this.formatNowTimeStr();
+
+                    const dataToSave = this.routeItems.map(i => {
+                        const tsList = Array.isArray(i.scanTimestamps) ? i.scanTimestamps : [];
+                        const logList = Array.isArray(i.scanLogs) ? i.scanLogs : [];
+                        const itemDate = i.scanDate || todayStr;
+                        const fisikNum = Number(i['Fisik']) || 0;
+
+                        let waktuRealtimeStr = '-';
+                        if (tsList.length > 0) {
+                            waktuRealtimeStr = `${itemDate} ${tsList.join(', ')}`;
+                        } else if (fisikNum > 0) {
+                            waktuRealtimeStr = `${itemDate} ${nowTimeFallback}`;
+                        }
+
+                        return {
+                            waktu_scan: waktuRealtimeStr,
+                            riwayat_scan: logList.length > 0 ? logList.join(' | ') : '-',
+                            kategori: i['Kategori'],
+                            kode_barang: i['Kode Barang'],
+                            nama_barang: i['Nama Barang'],
+                            target: i['Kuantitas'] || 0,
+                            fisik: fisikNum,
+                            selisih: fisikNum - (i['Kuantitas'] || 0),
+                            keterangan: i['Keterangan'] || ''
+                        };
+                    });
 
                     if (dataToSave.length === 0) return;
 
@@ -1459,7 +1548,7 @@
 
                         if (result.status === 'success') {
                             this.playSound('klop');
-                            this.notify('success', 'Tersimpan Aman!', 'Hasil Checker & Keterangan berhasil dicatat di Server.');
+                            this.notify('success', 'Tersimpan Aman!', 'Hasil Checker & Jam Realtime Scan/Input berhasil dicatat di Server.');
                         } else {
                             this.notify('error', 'Gagal Menyimpan', result.message);
                         }
