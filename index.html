@@ -83,11 +83,11 @@
                     <p class="font-extrabold text-sm">{{ t.title }}</p>
                     <p v-if="t.message" class="opacity-90 mt-0.5 leading-snug">{{ t.message }}</p>
                 </div>
-                <button @click="removeToast(t.id)" title="Tutup Notifikasi" class="opacity-70 hover:opacity-100 text-xs font-black">✕</button>
+                <button @click="removeToast(t.id)" title="Tutup Notifikasi" class="opacity-70 hover:opacity-100 text-xs font-black">X</button>
             </div>
         </div>
 
-        <!-- MODAL PERINGATAN SAAT TER-SCAN BARCODE (>4 DIGIT) DI KOLOM KUANTITAS (Tanpa Refresh Halaman, Langsung Bersihkan & Input Ulang) -->
+        <!-- MODAL PERINGATAN SAAT TER-SCAN BARCODE (>4 DIGIT) DI KOLOM KUANTITAS MANUAL -->
         <div v-if="barcodeWarningModal.show" @click.stop class="fixed inset-0 bg-red-950/75 backdrop-blur-sm z-[9998] flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border-4 border-red-600 text-center">
                 <div class="w-14 h-14 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-3">
@@ -96,7 +96,7 @@
                     </svg>
                 </div>
                 <h3 class="font-black text-lg text-red-700 uppercase tracking-wide mb-1">
-                    Peringatan: Input &gt; 4 Digit!
+                    Peringatan: Input Manual &gt; 4 Digit
                 </h3>
                 <p class="text-xs font-semibold text-slate-600 leading-relaxed mb-4">
                     {{ barcodeWarningModal.message }}
@@ -106,37 +106,41 @@
                 </div>
                 <div class="flex gap-2 justify-center">
                     <button v-if="barcodeWarningModal.matchedItem"
-                            @click="switchFromQtyBarcodeWarning"
+                            @click="processMatchedItemFromWarning"
                             class="flex-1 bg-blue-700 hover:bg-blue-800 text-white font-extrabold text-xs py-3 px-4 rounded-xl transition">
-                        Pindah ke Barang Ini
+                        Proses Scan Barang Ini
                     </button>
                     <button @click="dismissBarcodeWarningModal"
                             ref="warningOkBtn"
                             class="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs py-3 px-4 rounded-xl transition">
-                        Bersihkan &amp; Isi Qty (Enter)
+                        Tutup dan Kembali ke Scan
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- 1. HEADER APP (Dengan Tombol Menu Navigasi ke Portal A & B, Tanpa Duplikasi Simbol+Teks) -->
-        <header class="bg-[#1d4ed8] text-white px-6 py-4 shadow-md flex items-center justify-between z-30">
+        <!-- 1. HEADER APP -->
+        <header class="bg-[#1d4ed8] text-white px-6 py-4 shadow-md flex flex-wrap items-center justify-between gap-3 z-30">
             <div class="flex items-center gap-3">
-                <!-- Tombol Menu Pilihan Antar Portal (Menghubungkan C ke A dan B) -->
                 <button @click.stop="portalMenuOpen = true" 
                         class="bg-[#d4e157] hover:bg-lime-300 text-slate-900 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider shadow-sm transition active:scale-95">
                     Menu Portal
                 </button>
-                <h1 class="font-black text-lg md:text-2xl tracking-wide uppercase">PORTAL CHECKER (C)</h1>
+                <h1 class="font-black text-lg md:text-2xl tracking-wide uppercase leading-none">PORTAL CHECKER (C)</h1>
             </div>
-            <div class="flex items-center gap-2.5">
-                <!-- Tombol Tes Nada Unik (Klop, Kurang, Lebih) -->
-                <div class="hidden md:flex items-center gap-1 bg-blue-800/80 border border-blue-500/40 rounded-full px-2.5 py-1 text-[10px] font-bold">
+            <div class="flex items-center gap-2 flex-wrap">
+
+                <!-- Tombol Tes & Pengaturan Nada Unik (Klop, Kurang, Lebih) -->
+                <div class="flex items-center gap-1 bg-blue-800/80 border border-blue-500/40 rounded-full px-2.5 py-1 text-[10px] font-bold">
                     <button @click="playSound('kurang')" title="Tes Suara Kurang" class="px-2 py-0.5 rounded-full hover:bg-amber-500/30 text-amber-200 transition">Nada Kurang</button>
                     <span class="opacity-40">|</span>
                     <button @click="playSound('klop')" title="Tes Suara Klop / Pas" class="px-2 py-0.5 rounded-full hover:bg-emerald-500/30 text-emerald-200 transition">Nada Klop</button>
                     <span class="opacity-40">|</span>
                     <button @click="playSound('lebih')" title="Tes Suara Lebih" class="px-2 py-0.5 rounded-full hover:bg-rose-500/30 text-rose-200 transition">Nada Lebih</button>
+                    <span class="opacity-40">|</span>
+                    <button @click.stop="showSoundModal = true" class="px-2.5 py-0.5 rounded-full bg-[#d4e157] text-slate-900 font-black hover:bg-lime-300 transition">
+                        Atur Nada
+                    </button>
                 </div>
 
                 <!-- Ikon Pengaturan Link GitHub Antar Portal -->
@@ -184,7 +188,7 @@
                         <button v-if="checkerForm.pic && !isCheckerLocked" 
                                 @mousedown.prevent="clearPicSelection" 
                                 title="Bersihkan Nama PIC"
-                                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 font-bold text-xs">✕</button>
+                                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 font-bold text-xs">X</button>
                     </div>
                 </div>
 
@@ -199,7 +203,7 @@
                         <button v-if="checkerForm.cabang && !isCheckerLocked" 
                                 @mousedown.prevent="clearCabangSelection" 
                                 title="Bersihkan Pilihan Cabang"
-                                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 font-bold text-xs">✕</button>
+                                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 font-bold text-xs">X</button>
                     </div>
                     <div v-if="showGudangList && !isCheckerLocked" class="absolute top-full left-0 right-0 bg-white border border-slate-300 mt-1 rounded-md shadow-xl z-50 max-h-52 overflow-y-auto">
                         <div v-for="gudang in dynamicGudangList.filter(g => g.toLowerCase().includes(checkerForm.cabang.toLowerCase()))" 
@@ -222,7 +226,7 @@
                         <button v-if="checkerForm.noIt && !isCheckerLocked" 
                                 @mousedown.prevent="clearNoItSelection" 
                                 title="Bersihkan No. Pemindahan"
-                                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 font-bold text-xs">✕</button>
+                                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 font-bold text-xs">X</button>
                     </div>
                     <div v-if="showNoItList && !isCheckerLocked" class="absolute top-full left-0 right-0 bg-white border border-slate-300 mt-1 rounded-md shadow-xl z-50 max-h-52 overflow-y-auto">
                         <div v-for="no in dynamicNoItList.filter(n => n.toLowerCase().includes(checkerForm.noIt.toLowerCase()))" 
@@ -266,18 +270,15 @@
 
         </section>
 
-        <!-- 3. AREA SCAN BARCODE & DISPLAY BESAR (Jika Salah Input, Langsung Bersihkan Tanpa Reload) -->
+        <!-- 3. AREA SCAN BARCODE LANGSUNG (1-STEP DIRECT SCAN) & DISPLAY BESAR -->
         <section class="px-6 py-4 bg-[#eff6ff] border-y border-blue-100 flex flex-col gap-3 relative z-10" :class="{'shake-error': scanErrorAnim}">
             
-            <!-- Baris 1: Input Scan & Input Kuantitas -->
-            <div class="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-3 items-end">
-                <div class="flex flex-col relative">
-                    <label class="text-sm font-extrabold text-[#1e3a8a] mb-1 flex items-center justify-between">
-                        <span class="flex items-center gap-2">
-                            <span>Scan Barcode / Ketik Nama Barang</span>
-                            <span class="bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">AUTOFOCUS</span>
-                        </span>
-                        <span v-if="currentScan" class="text-[11px] font-semibold text-slate-500">ESC untuk bersihkan</span>
+            <!-- Baris 1: Kolom Scan Maksimal, Kolom Kuantitas Kecil, & Saklar Kecil "Input Otomatis" -->
+            <div class="flex items-end gap-2.5 w-full">
+                <!-- Kolom Scan Barcode / Ketik Nama Barang (Dimaksimalkan agar nama barang tidak terpotong) -->
+                <div class="flex-1 min-w-0 flex flex-col relative">
+                    <label class="text-sm font-extrabold text-[#1e3a8a] mb-1">
+                        Scan Barcode / Ketik Nama Barang
                     </label>
                     <div class="relative">
                         <input ref="scanInput" type="text" v-model="currentScan" 
@@ -286,14 +287,14 @@
                                @keydown.enter.prevent="handleScanEnter"
                                @keydown.esc.prevent="cancelCurrentScan"
                                autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-                               placeholder="..." 
-                               class="w-full border border-[#1e3a8a] px-4 py-2 pr-9 rounded-md font-bold text-base text-center text-blue-950 bg-white focus:ring-2 focus:ring-blue-500/30 outline-none">
+                               placeholder="Scan barcode atau ketik nama barang..." 
+                               class="w-full h-[40px] border border-[#1e3a8a] px-3.5 py-1.5 pr-8 rounded-md font-bold text-sm md:text-base text-center text-blue-950 bg-white focus:ring-2 focus:ring-blue-500/30 outline-none">
                         
                         <button v-if="currentScan" 
                                 @mousedown.prevent="cancelCurrentScan" 
                                 title="Bersihkan Input (ESC)"
-                                class="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-200 hover:bg-red-500 hover:text-white text-slate-600 font-black text-xs flex items-center justify-center transition-colors">
-                            ✕
+                                class="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-200 hover:bg-red-500 hover:text-white text-slate-600 font-black text-[10px] flex items-center justify-center transition-colors">
+                            X
                         </button>
                     </div>
                     
@@ -312,30 +313,39 @@
                     </div>
                 </div>
 
-                <!-- Input Kuantitas (Maks 4 Digit, Jika Salah Langsung Bersihkan Tanpa Refresh) -->
-                <div class="flex flex-col">
-                    <label class="text-sm font-extrabold text-[#1e3a8a] mb-1 flex items-center justify-between">
-                        <span>Input Kuantitas</span>
-                        <span v-if="foundItemLive" class="text-[10px] font-bold text-blue-600">Enter = OK</span>
+                <!-- Kolom Kuantitas (Kecil & Rapi) -->
+                <div class="w-20 sm:w-24 shrink-0 flex flex-col">
+                    <label class="text-sm font-extrabold text-[#1e3a8a] mb-1 text-center">
+                        Kuantitas
                     </label>
-                    <div class="relative">
-                        <input ref="qtyInput" type="text" inputmode="numeric" 
-                               v-model="currentScanQty" 
-                               @input="onScanQtyLiveInput"
-                               @keydown.up.prevent="stepScanQty(1)"
-                               @keydown.down.prevent="stepScanQty(-1)"
-                               @keydown.enter.prevent="submitScan" 
-                               @keydown.esc.prevent="cancelCurrentScan"
-                               placeholder="..."
-                               class="w-full border border-[#1e3a8a] px-4 py-2 pr-9 rounded-md font-black text-base text-center text-blue-950 bg-white focus:ring-2 focus:ring-blue-500/30 outline-none">
-                        
-                        <button v-if="currentScan || currentScanQty !== ''" 
-                                @mousedown.prevent="cancelCurrentScan" 
-                                title="Bersihkan Scan (ESC)"
-                                class="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-200 hover:bg-red-500 hover:text-white text-slate-600 font-black text-xs flex items-center justify-center transition-colors">
-                            ✕
-                        </button>
-                    </div>
+                    <input ref="qtyInput" type="text" inputmode="numeric" 
+                           v-model="currentScanQty" 
+                           :disabled="scanInputMode === 'auto'"
+                           @input="onScanQtyLiveInput"
+                           @keydown.up.prevent="stepScanQty(1)"
+                           @keydown.down.prevent="stepScanQty(-1)"
+                           @keydown.enter.prevent="submitManualTopQty" 
+                           @keydown.esc.prevent="cancelCurrentScan"
+                           class="w-full h-[40px] border px-2 py-1.5 rounded-md font-black text-base text-center outline-none transition-colors"
+                           :class="scanInputMode === 'auto' ? 'border-slate-300 bg-slate-100 text-slate-400 cursor-not-allowed' : 'border-[#1e3a8a] bg-white text-blue-950 focus:ring-2 focus:ring-blue-500/30'">
+                </div>
+
+                <!-- Saklar Kecil "Input Otomatis" (Hijau = Aktif, Merah = Tidak Aktif) -->
+                <div class="shrink-0 flex flex-col items-center">
+                    <label class="text-[11px] font-extrabold text-[#1e3a8a] mb-1 text-center leading-tight">
+                        Input Otomatis
+                    </label>
+                    <button type="button"
+                            @click="toggleScanInputMode"
+                            :title="scanInputMode === 'auto' ? 'Input Otomatis: Aktif' : 'Input Otomatis: Tidak Aktif (Mode Manual)'"
+                            class="h-[40px] px-2.5 rounded-md border font-extrabold text-[11px] text-white flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-95"
+                            :class="scanInputMode === 'auto' ? 'bg-emerald-600 hover:bg-emerald-700 border-emerald-700' : 'bg-red-600 hover:bg-red-700 border-red-700'">
+                        <span class="w-6 h-3.5 rounded-full bg-black/25 p-0.5 flex items-center transition-all">
+                            <span class="w-2.5 h-2.5 rounded-full bg-white shadow transition-transform duration-200"
+                                  :class="scanInputMode === 'auto' ? 'translate-x-2.5' : 'translate-x-0'"></span>
+                        </span>
+                        <span>Otomatis</span>
+                    </button>
                 </div>
             </div>
 
@@ -374,7 +384,7 @@
         <!-- LOADING SPINNER (Hanya saat klik Tarik Data dari Spreadsheet) -->
         <div v-if="loading" class="flex flex-col items-center justify-center p-16 flex-1 bg-white">
             <div class="animate-spin w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full mb-4"></div>
-            <p class="font-bold text-blue-900 text-base">Menyinkronkan database barcode dari Spreadsheet...</p>
+            <p class="font-bold text-blue-900 text-base">Menyinkronkan database Kuantitas dan Pack Of dari Spreadsheet...</p>
         </div>
 
         <!-- 4. AREA SEARCH, FILTER CORONG, & TABEL CHECKER -->
@@ -387,7 +397,7 @@
                            @keydown.esc="clearTableSearch"
                            placeholder="Cari nama barang, kode barcode, kategori, atau keterangan..." 
                            class="w-full border border-slate-300 px-3 py-1.5 pr-8 text-xs font-medium text-slate-700 focus:border-blue-600 outline-none rounded-sm">
-                    <button v-if="tableSearch" @click="clearTableSearch" title="Bersihkan Pencarian" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 text-xs font-bold">✕</button>
+                    <button v-if="tableSearch" @click="clearTableSearch" title="Bersihkan Pencarian" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 text-xs font-bold">X</button>
                 </div>
                 
                 <!-- Tombol Filter Ikon Corong (Murni Simbol) -->
@@ -450,21 +460,29 @@
                         <tr v-for="item in sortedCheckerItems" :key="item['Kode Barang']" 
                             :class="[getRowColor(item), item.highlight ? 'highlight-scan' : '']" 
                             class="transition-colors duration-200">
-                            <td class="text-xs">{{ item['Kategori'] }}</td>
+                            <td class="text-xs">
+                                <div>{{ item['Kategori'] }}</div>
+                                <span v-if="getPackSizeForItem(item) > 1" class="inline-block mt-0.5 bg-purple-100 text-purple-800 border border-purple-300 text-[9px] font-extrabold px-1.5 py-0.2 rounded">
+                                    1 Pack = {{ getPackSizeForItem(item) }} Pcs
+                                </span>
+                            </td>
                             <td class="font-mono text-xs text-slate-600">{{ item['Kode Barang'] }}</td>
                             <td class="text-xs leading-snug">
-                                <div class="flex items-center gap-2">
+                                <div class="flex items-center gap-2 flex-wrap">
                                     <span>{{ item['Nama Barang'] }}</span>
                                     <span v-if="isMostRecent(item)" class="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase shrink-0">BARU</span>
+                                </div>
+                                <div v-if="item.scanTimestamps && item.scanTimestamps.length > 0" class="text-[10px] font-mono text-slate-500 mt-0.5">
+                                    Jam: {{ item.scanTimestamps.join(', ') }}
                                 </div>
                             </td>
                             <td class="text-center text-base font-black">{{ item['Kuantitas'] || 0 }}</td>
                             
-                            <!-- Klik Angka Fisik Langsung Tanpa Duplikasi Ikon Pensil -->
+                            <!-- Klik Angka Fisik Langsung (Input Manual Tidak Berubah, Satuan Pcs Murni) -->
                             <td class="text-center">
                                 <div v-if="!item.editMode" @click="openManualEdit(item)" 
                                      class="text-base font-black cursor-pointer hover:bg-blue-100/80 border border-transparent hover:border-blue-300 py-1 px-3 rounded-lg transition inline-block min-w-[44px]" 
-                                     title="Klik angka untuk ubah manual">
+                                     title="Klik angka untuk ubah manual (satuan Pcs)">
                                     {{ item['Fisik'] }}
                                 </div>
                                 <div v-else class="flex items-center justify-center gap-1">
@@ -553,12 +571,148 @@
                         Silakan pilih Cabang Tujuan dan No. Pemindahan di atas.
                     </p>
                     <p class="text-xs font-medium text-slate-400">
-                        Klik tombol "Tarik Data" di kanan atas apabila perlu menarik data terbaru dari Spreadsheet.
+                        Klik tombol "Tarik Data" di kanan atas apabila ingin menyinkronkan data terbaru dari Spreadsheet.
                     </p>
                 </template>
             </div>
 
         </main>
+
+        <!-- ============================================================== -->
+        <!-- MODAL PENGATURAN SUARA / NADA (KURANG, KLOP, LEBIH + UPLOAD)   -->
+        <!-- ============================================================== -->
+        <div v-if="showSoundModal" @click.stop class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center border-b border-slate-200 pb-3 mb-4">
+                    <div>
+                        <h3 class="font-black text-base text-slate-900 uppercase tracking-wide">Pengaturan Bunyi Checker</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Pilih preset nada atau upload file musik/audio sendiri (MP3, WAV, OGG, M4A, AAC, FLAC, dll) lalu klik Simpan.</p>
+                    </div>
+                    <button @click="showSoundModal = false" class="text-slate-400 hover:text-slate-700 font-black text-lg">X</button>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- 1. NADA BARANG KURANG -->
+                    <div class="border border-amber-200 bg-amber-50/50 rounded-xl p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-extrabold text-xs uppercase text-amber-900">1. Bunyi Barang Kurang</span>
+                            <button @click="playSound('kurang')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold px-3 py-1 rounded-lg transition">
+                                Tes Bunyi Kurang
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 items-center">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 mb-1">Pilih Jenis Nada</label>
+                                <select v-model="soundSettings.kurang.mode" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-bold text-slate-800 bg-white outline-none">
+                                    <option value="preset_1">Preset 1 - Tone Turun (Default)</option>
+                                    <option value="preset_2">Preset 2 - Beep Pendek 2x</option>
+                                    <option value="preset_3">Preset 3 - Soft Low Bell</option>
+                                    <option value="preset_4">Preset 4 - Sonar Pulse</option>
+                                    <option value="preset_5">Preset 5 - Acoustic Pop</option>
+                                    <option value="custom" :disabled="!soundSettings.kurang.fileName">File Upload Sendiri {{ soundSettings.kurang.fileName ? '(' + soundSettings.kurang.fileName + ')' : '(Belum Upload)' }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 mb-1">Upload Musik / Nada Sendiri</label>
+                                <div class="flex items-center gap-1.5">
+                                    <label class="flex-1 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 cursor-pointer text-center truncate">
+                                        <span>{{ soundSettings.kurang.fileName || 'Pilih File Audio...' }}</span>
+                                        <input type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.webm" class="hidden" @change="onUploadCustomSound('kurang', $event)">
+                                    </label>
+                                    <button v-if="soundSettings.kurang.fileName" @click="clearCustomSound('kurang')" title="Hapus file audio upload" class="bg-red-100 hover:bg-red-200 text-red-700 font-bold text-xs px-2.5 py-2 rounded-lg">
+                                        Hapus
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. NADA BARANG KLOP -->
+                    <div class="border border-emerald-200 bg-emerald-50/50 rounded-xl p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-extrabold text-xs uppercase text-emerald-900">2. Bunyi Barang Klop / Pas</span>
+                            <button @click="playSound('klop')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold px-3 py-1 rounded-lg transition">
+                                Tes Bunyi Klop
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 items-center">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 mb-1">Pilih Jenis Nada</label>
+                                <select v-model="soundSettings.klop.mode" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-bold text-slate-800 bg-white outline-none">
+                                    <option value="preset_1">Preset 1 - Chime Sukses Naik (Default)</option>
+                                    <option value="preset_2">Preset 2 - Crystal Bell</option>
+                                    <option value="preset_3">Preset 3 - Kasir Cepat (High Beep)</option>
+                                    <option value="preset_4">Preset 4 - Fanfare Harmoni</option>
+                                    <option value="preset_5">Preset 5 - Double Ding</option>
+                                    <option value="custom" :disabled="!soundSettings.klop.fileName">File Upload Sendiri {{ soundSettings.klop.fileName ? '(' + soundSettings.klop.fileName + ')' : '(Belum Upload)' }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 mb-1">Upload Musik / Nada Sendiri</label>
+                                <div class="flex items-center gap-1.5">
+                                    <label class="flex-1 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 cursor-pointer text-center truncate">
+                                        <span>{{ soundSettings.klop.fileName || 'Pilih File Audio...' }}</span>
+                                        <input type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.webm" class="hidden" @change="onUploadCustomSound('klop', $event)">
+                                    </label>
+                                    <button v-if="soundSettings.klop.fileName" @click="clearCustomSound('klop')" title="Hapus file audio upload" class="bg-red-100 hover:bg-red-200 text-red-700 font-bold text-xs px-2.5 py-2 rounded-lg">
+                                        Hapus
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. NADA BARANG LEBIH -->
+                    <div class="border border-rose-200 bg-rose-50/50 rounded-xl p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-extrabold text-xs uppercase text-rose-900">3. Bunyi Barang Lebih</span>
+                            <button @click="playSound('lebih')" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold px-3 py-1 rounded-lg transition">
+                                Tes Bunyi Lebih
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 items-center">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 mb-1">Pilih Jenis Nada</label>
+                                <select v-model="soundSettings.lebih.mode" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-bold text-slate-800 bg-white outline-none">
+                                    <option value="preset_1">Preset 1 - Sirine Peringatan (Default)</option>
+                                    <option value="preset_2">Preset 2 - Buzzer Panjang</option>
+                                    <option value="preset_3">Preset 3 - Triple High Alert</option>
+                                    <option value="preset_4">Preset 4 - Horn Rendah</option>
+                                    <option value="preset_5">Preset 5 - Laser Alarm</option>
+                                    <option value="custom" :disabled="!soundSettings.lebih.fileName">File Upload Sendiri {{ soundSettings.lebih.fileName ? '(' + soundSettings.lebih.fileName + ')' : '(Belum Upload)' }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 mb-1">Upload Musik / Nada Sendiri</label>
+                                <div class="flex items-center gap-1.5">
+                                    <label class="flex-1 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 cursor-pointer text-center truncate">
+                                        <span>{{ soundSettings.lebih.fileName || 'Pilih File Audio...' }}</span>
+                                        <input type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.webm" class="hidden" @change="onUploadCustomSound('lebih', $event)">
+                                    </label>
+                                    <button v-if="soundSettings.lebih.fileName" @click="clearCustomSound('lebih')" title="Hapus file audio upload" class="bg-red-100 hover:bg-red-200 text-red-700 font-bold text-xs px-2.5 py-2 rounded-lg">
+                                        Hapus
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center mt-6 pt-4 border-t border-slate-200">
+                    <button @click="resetDefaultSounds" class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">
+                        Kembalikan ke Default
+                    </button>
+                    <div class="flex gap-2">
+                        <button @click="showSoundModal = false" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">
+                            Tutup
+                        </button>
+                        <button @click="saveSoundConfiguration" class="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-blue-700 hover:bg-blue-800 text-white shadow-md">
+                            Simpan Pengaturan Nada
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- ============================================================== -->
         <!-- BOTTOM SHEET MENU NAVIGASI ANTAR PORTAL (C -> A atau B)        -->
@@ -613,7 +767,7 @@
             <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-200">
                 <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
                     <h3 class="font-extrabold text-sm text-slate-800 uppercase">Link Antar Portal (A, B, C)</h3>
-                    <button @click="showConfigModal = false" class="text-slate-400 hover:text-slate-700 font-black">✕</button>
+                    <button @click="showConfigModal = false" class="text-slate-400 hover:text-slate-700 font-black">X</button>
                 </div>
                 <div class="space-y-3 text-left">
                     <div>
@@ -647,7 +801,7 @@
                         <h3 class="font-black text-base uppercase tracking-wider">Rekap Barang Berselisih / Bermasalah</h3>
                         <p class="text-[11px] text-slate-300 mt-0.5">Ubah Fisik atau pilih Keterangan langsung di bawah ini</p>
                     </div>
-                    <button @click="showRekapModal = false" title="Tutup" class="text-slate-400 hover:text-white font-black text-xl">✕</button>
+                    <button @click="showRekapModal = false" title="Tutup" class="text-slate-400 hover:text-white font-black text-xl">X</button>
                 </div>
                 <div class="p-6 overflow-y-auto flex-1 bg-slate-50">
                     <table v-if="rekapSelisihList.length > 0" class="w-full checker-table border-collapse bg-white shadow-sm rounded-lg overflow-hidden">
@@ -718,6 +872,8 @@
     <script>
         const { createApp } = Vue;
 
+        const DEFAULT_PACK_OF_MAP = {"a battery blackcell 18650 2500mah": 2, "a battery blackcell 18650 3000mah": 2, "a battery blackcell 18650 3500mah": 2, "a battery blackcell 18650 big black one 4000mah": 2, "a battery blackcell 21700 5000mah": 2, "a battery blackcell dna 14500 1000mah": 2, "a battery blackcell dna 18650 2500mah": 2, "a battery blackcell dna 18650 3000mah": 2, "a battery blackcell dna 18650 3500mah": 2, "a battery blackcell dna 18650 big black 4000mah": 2, "a battery blackcell dna lite 18650 2000mah 40a": 2, "a battery blackcell imr18650 2100mah 50a": 2, "a battery blackcell imr18650 3100mah": 2, "a battery blackcell m6 18650 2400mah": 2, "a battery eizfan black cyan 18650 3100mah": 2, "a battery eizfan black purple 21700 5000mah": 2, "a battery up charge 2500mah": 1, "a battery up charge 3000mah": 1, "a battery up charge 3500mah": 1, "a battery up charge 3800mah": 1, "a battery vape zoo molicell 18650 m35a": 2, "a battery vape zoo molicell 18650 p26a": 2, "a battery vape zoo molicell 18650 p28a": 2, "a battery vape zoo molicell 18650 p30b": 2, "a battery vrk 18350 700mah show the real you": 1, "a battery vrk 18650 2500mah": 1, "a battery vrk 18650 2500mah show the real you": 1, "a battery vrk 18650 3000mah by preva": 1, "a battery vrk 18650 3000mah show the real you": 1, "a battery vrk 18650 3500mah": 1, "a battery vrk 18650 3500mah show the real you": 1, "a battery vrk 18650 700mah show the real you": 1, "a battery vrk 21700 3750mah 40a": 1, "a battery vrk 21700 3750mah show the real you": 1, "a battery vrk 7th 18650 3200mah": 1, "a battery vrk x trml 18650 pvr 2000mah": 1, "a cartidge voopoo ito 2ml 0.7ohm": 2, "a cartidge voopoo ito 2ml 1.0ohm": 2, "a cartidge voopoo ito 2ml 1.2ohm": 2, "a cartridge dotmod dotpod max 0.4ohm": 2, "a cartridge dotmod dotpod max 0.6ohm": 2, "a cartridge dotmod dotpod nano 0.6ohm": 2, "a cartridge dotmod dotpod nano 0.8ohm": 2, "a cartridge dotmod dotpod nano 1.0ohm": 2, "a cartridge dway ultra 0.6ohm": 3, "a cartridge dway ultra 0.8ohm": 3, "a cartridge eazy 1.6ml 0.9ohm": 3, "a cartridge eazy 1.6ml 1.3ohm": 3, "a cartridge eazy with filter 2ml 1.0ohm": 3, "a cartridge elfbar elf x v2 2ml 0.6ohm": 3, "a cartridge elfbar elf x v2 2ml 0.6ohm (k)": 3, "a cartridge elfbar elf x v2 2ml 0.8ohm": 3, "a cartridge elfbar elf x v2 2ml 0.8ohm (k)": 3, "a cartridge empty oxva xlim c": 2, "a cartridge foom pod x": 3, "a cartridge foom pod x ultra": 3, "a cartridge foom pod y 0.8ohm": 3, "a cartridge geekvape q 0.6ohm": 3, "a cartridge geekvape q 0.8ohm": 3, "a cartridge hellvape fusion 0.8 ohm": 3, "a cartridge hellvape vsee 0.6ohm": 3, "a cartridge hellvape vsee 0.8ohm": 3, "a cartridge hexzoo hexpod 2ml 0.6ohm": 3, "a cartridge hexzoo hexpod 2ml 0.8ohm": 3, "a cartridge hqd rifex 2ml 0.6ohm": 3, "a cartridge hqd rifex 2ml 0.8ohm": 3, "a cartridge joiway s1 pod 0.8ohm amber": 6, "a cartridge joiway s1 pod 0.8ohm aurora": 6, "a cartridge joiway s1 pod 0.8ohm electric blue": 6, "a cartridge joiway s1 pod 0.8ohm emerald": 6, "a cartridge joiway s1 pod 0.8ohm golden black": 6, "a cartridge joiway s1 pod 0.8ohm ocean": 6, "a cartridge joiway s1 pod 0.8ohm porvence": 6, "a cartridge joiway s1 pod 0.8ohm sakura pink": 6, "a cartridge joiway s1 pod 0.8ohm silver frost": 6, "a cartridge joiway s1 pod 0.8ohm sunshine": 6, "a cartridge joiway x1 0.6 ohm": 6, "a cartridge joiway x1 0.8 ohm": 6, "a cartridge lost vape adapter ursa e plus": 1, "a cartridge lost vape e plus 0.3ohm": 3, "a cartridge lost vape e plus 0.6ohm": 3, "a cartridge lost vape e plus 0.8ohm": 3, "a cartridge lost vape e plus dual mesh 0.3ohm": 3, "a cartridge lost vape e plus dual mesh 0.6ohm": 3, "a cartridge lost vape e plus v2 0.3ohm": 3, "a cartridge lost vape e plus v2 0.6ohm": 3, "a cartridge lost vape e plus v2 0.8ohm": 3, "a cartridge lost vape rba e plus": 1, "a cartridge lost vape ursa nano pod 0.6ohm": 3, "a cartridge lost vape ursa nano pod 0.6ohm 3 colour": 3, "a cartridge lost vape ursa nano pod 0.8ohm": 3, "a cartridge lost vape ursa nano pod 1.0ohm": 3, "a cartridge lost vape ursa nano v1 pod 0.8ohm selling support": 1, "a cartridge lost vape ursa nano v2 pod 0.6ohm": 3, "a cartridge lost vape ursa nano v2 pod 0.6ohm selling support": 1, "a cartridge lost vape ursa nano v2 pod 0.8ohm": 3, "a cartridge lost vape ursa nano v2 pod 0.8ohm selling support": 1, "a cartridge lost vape ursa nano v3 pod 0.6ohm": 3, "a cartridge lost vape ursa nano v3 pod 0.8ohm": 3, "a cartridge movi mark zero 0.3ohm": 3, "a cartridge movi mark zero 0.6ohm": 3, "a cartridge movi mark zero 0.8ohm": 3, "a cartridge nitrous pocket 4ml 0.4ohm": 3, "a cartridge nitrous pocket 4ml 0.6ohm": 3, "a cartridge nixx 0.8ohm": 3, "a cartridge oneo pro 4ml 0.4ohm": 3, "a cartridge oneo pro 4ml 0.6ohm": 3, "a cartridge oneo pro 4ml 0.8ohm": 3, "a cartridge oxva artio 2ml 0.8ohm": 3, "a cartridge oxva nexlim 0.6ohm": 3, "a cartridge oxva nexlim 0.8ohm": 3, "a cartridge oxva nexlim 1.2ohm": 3, "a cartridge oxva nexlim v2 4ml 0.6ohm": 3, "a cartridge oxva nexlim v2 4ml 0.8ohm": 3, "a cartridge oxva oneo 3.5ml 0.4ohm": 3, "a cartridge oxva oneo 3.5ml 0.6ohm": 3, "a cartridge oxva oneo 3.5ml 0.8ohm": 3, "a cartridge oxva vprime 0.2ohm": 2, "a cartridge oxva vprime 0.4ohm": 2, "a cartridge oxva vprime 0.6ohm": 2, "a cartridge oxva vprime 0.8ohm": 2, "a cartridge oxva xlim ss 0.4ohm": 3, "a cartridge oxva xlim ss 0.6ohm": 3, "a cartridge oxva xlim ss 0.8ohm": 3, "a cartridge oxva xlim ss 1.2ohm": 3, "a cartridge oxva xlim v2 0.6ohm": 3, "a cartridge oxva xlim v2 0.8ohm": 3, "a cartridge oxva xlim v2 1.2ohm": 3, "a cartridge oxva xlim v3 0.4ohm": 3, "a cartridge oxva xlim v3 0.6ohm": 3, "a cartridge oxva xlim v3 0.8ohm": 3, "a cartridge oxva xlim v3 3ml 0.4ohm": 3, "a cartridge oxva xlim v3 3ml 0.6ohm": 3, "a cartridge oxva xlim v3 3ml 0.8ohm": 3, "a cartridge rba alexa sixprime": 1, "a cartridge relx creator 15ml black": 1, "a cartridge relx creator 15ml blue": 1, "a cartridge relx creator 15ml green": 1, "a cartridge relx creator 5ml 0.6ohm": 1, "a cartridge relx prime 0.4ohm": 3, "a cartridge relx prime 0.4ohm (k)": 3, "a cartridge relx prime 0.6ohm": 3, "a cartridge relx prime 0.8ohm": 3, "a cartridge relx prime pro 0.6ohm": 3, "a cartridge relx prime pro 0.8ohm": 3, "a cartridge rolv 0.6ohm": 4, "a cartridge rolv 0.6ohm (k)": 4, "a cartridge san dinasty 0.4ohm": 3, "a cartridge san dinasty 0.6ohm": 3, "a cartridge san dinasty 0.8ohm": 3, "a cartridge trml t-max 2ml 0.6ohm": 3, "a cartridge trml t-max 2ml 0.8ohm": 3};
+
         const app = createApp({
             data() {
                 let savedForm = null;
@@ -725,21 +881,41 @@
                 let savedProg = {};
                 let savedConfig = null;
                 let cachedItems = [];
+                let savedPackOf = null;
+                let savedSoundCfg = null;
+                let savedScanMode = 'auto';
+                let savedScanModeByPic = {};
                 try {
                     savedForm = JSON.parse(localStorage.getItem('checkerForm_v2'));
                     savedLock = JSON.parse(localStorage.getItem('isCheckerLocked_v2')) || false;
                     savedProg = JSON.parse(localStorage.getItem('checkerProgress_v4')) || {};
                     savedConfig = JSON.parse(localStorage.getItem('vapeboss_portal_links_v2'));
                     cachedItems = JSON.parse(localStorage.getItem('checkerItemsCache_v1')) || [];
+                    savedPackOf = JSON.parse(localStorage.getItem('checkerPackOfMap_v1'));
+                    savedSoundCfg = JSON.parse(localStorage.getItem('vapeboss_checker_sound_cfg_v1'));
+                    const rawMode = localStorage.getItem('vapeboss_checker_scan_mode_v1');
+                    if (rawMode === 'manual' || rawMode === 'auto') {
+                        savedScanMode = rawMode;
+                    }
+                    savedScanModeByPic = JSON.parse(localStorage.getItem('vapeboss_checker_scan_mode_by_pic_v1')) || {};
+                    if (savedForm && savedForm.pic) {
+                        const picKey = String(savedForm.pic).trim().toUpperCase();
+                        if (savedScanModeByPic[picKey] === 'manual' || savedScanModeByPic[picKey] === 'auto') {
+                            savedScanMode = savedScanModeByPic[picKey];
+                        }
+                    }
                 } catch (e) {}
 
                 return {
                     apiUrl: 'https://script.google.com/macros/s/AKfycbw-Hlly2gks4HjfRIdD0xL3l7Uhc7I-R2dRaGWYgFMY7qkhRWOYLcSQuEuqHCMLnnsL/exec',
+                    spreadsheetId: '1P_knQDuxqglhl0NSiqFrcsAH5aQC9m8gDWCgrWHZKCM',
+                    packOfGid: '672362969',
                     loading: false,
                     isSaving: false,
                     saveStatusText: 'Menyimpan...',
-                    
+
                     checkerItems: cachedItems,
+                    packOfMap: Object.assign({}, DEFAULT_PACK_OF_MAP, savedPackOf || {}),
                     checkerForm: savedForm || { cabang: '', noIt: '', pic: '' },
                     isCheckerLocked: savedLock,
                     savedProgress: savedProg,
@@ -747,15 +923,19 @@
                     
                     keteranganOptions: ['Barang Tidak Ada', 'Tukar Jual', 'Bocor', 'Qty Tidak Sesuai'],
                     
+                    scanInputMode: savedScanMode,
+                    scanModeByPic: savedScanModeByPic,
                     currentScan: '',
                     currentScanQty: '',
                     suggestionIndex: -1,
                     lastScannedItem: null,
                     tableSearch: '',
                     scanErrorAnim: false,
+                    barcodeStreamLockUntil: 0,
                     
                     portalMenuOpen: false,
                     showConfigModal: false,
+                    showSoundModal: false,
                     showGudangList: false,
                     showNoItList: false,
                     showFilterMenu: false,
@@ -765,6 +945,16 @@
                         scannedValue: '',
                         message: '',
                         matchedItem: null
+                    },
+                    soundSettings: savedSoundCfg || {
+                        kurang: { mode: 'preset_1', fileName: '' },
+                        klop: { mode: 'preset_1', fileName: '' },
+                        lebih: { mode: 'preset_1', fileName: '' }
+                    },
+                    customAudioDataUrls: {
+                        kurang: null,
+                        klop: null,
+                        lebih: null
                     },
                     toasts: [],
                     audioCtx: null,
@@ -782,6 +972,15 @@
                     handler(newVal) {
                         try {
                             localStorage.setItem('checkerForm_v2', JSON.stringify(newVal));
+                            if (newVal && newVal.pic) {
+                                const picKey = String(newVal.pic).trim().toUpperCase();
+                                if (picKey && (this.scanModeByPic[picKey] === 'auto' || this.scanModeByPic[picKey] === 'manual')) {
+                                    if (this.scanInputMode !== this.scanModeByPic[picKey]) {
+                                        this.scanInputMode = this.scanModeByPic[picKey];
+                                        localStorage.setItem('vapeboss_checker_scan_mode_v1', this.scanInputMode);
+                                    }
+                                }
+                            }
                         } catch (e) {}
                     }
                 },
@@ -920,6 +1119,8 @@
                 }
             },
             mounted() {
+                this.loadCustomSoundsFromIdb();
+                this.loadPackOfSheetLive();
                 if (this.checkerItems.length > 0) {
                     this.applySavedProgressToMemory();
                 }
@@ -962,6 +1163,71 @@
                     item.lastInputMode = mode;
                     item.lastUpdated = nowMs;
                 },
+
+                getPackSizeForItem(item) {
+                    if (!item) return 1;
+                    const cat = String(item['Kategori'] || '').trim().toLowerCase();
+                    if (cat !== 'accessories') return 1;
+                    const itemNameKey = String(item['Nama Barang'] || '').trim().toLowerCase();
+                    const packVal = Number(this.packOfMap[itemNameKey]);
+                    if (!isNaN(packVal) && packVal > 0) {
+                        return Math.round(packVal);
+                    }
+                    return 1;
+                },
+
+                async loadPackOfSheetLive() {
+                    try {
+                        const url = `https://docs.google.com/spreadsheets/d/${this.spreadsheetId}/gviz/tq?tqx=out:json&gid=${this.packOfGid}`;
+                        const res = await fetch(url);
+                        const text = await res.text();
+                        const jsonStr = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
+                        const parsed = JSON.parse(jsonStr);
+                        const rows = (parsed && parsed.table && parsed.table.rows) ? parsed.table.rows : [];
+                        const liveMap = Object.assign({}, DEFAULT_PACK_OF_MAP);
+                        rows.forEach(r => {
+                            const c = r.c;
+                            if (!c) return;
+                            const name = c[1] && c[1].v ? String(c[1].v).trim() : '';
+                            const packNum = c[2] && c[2].v !== null && c[2].v !== undefined ? Number(c[2].v) : NaN;
+                            if (name && name.toLowerCase() !== 'item name' && !isNaN(packNum) && packNum > 0) {
+                                liveMap[name.toLowerCase()] = Math.round(packNum);
+                            }
+                        });
+                        this.packOfMap = liveMap;
+                        try {
+                            localStorage.setItem('checkerPackOfMap_v1', JSON.stringify(this.packOfMap));
+                        } catch (e) {}
+                    } catch (e) {}
+                },
+
+                toggleScanInputMode() {
+                    this.setScanInputMode(this.scanInputMode === 'auto' ? 'manual' : 'auto');
+                },
+                setScanInputMode(mode) {
+                    if (mode !== 'auto' && mode !== 'manual') return;
+                    this.scanInputMode = mode;
+                    this.currentScanQty = '';
+                    try {
+                        localStorage.setItem('vapeboss_checker_scan_mode_v1', mode);
+                        if (this.checkerForm && this.checkerForm.pic) {
+                            const picKey = String(this.checkerForm.pic).trim().toUpperCase();
+                            if (picKey) {
+                                this.scanModeByPic[picKey] = mode;
+                                localStorage.setItem('vapeboss_checker_scan_mode_by_pic_v1', JSON.stringify(this.scanModeByPic));
+                            }
+                        }
+                    } catch (e) {}
+                    if (mode === 'auto') {
+                        this.notify('success', 'Mode Enter Otomatis Aktif', 'Scan barcode langsung masuk (+1 Pcs / sesuai Pack Of Accessories). Pengaturan tersimpan di perangkat ini.');
+                    } else {
+                        this.notify('info', 'Mode Enter Manual Aktif', 'Scan/pilih barang -> isi/konfirmasi kolom Input Kuantitas -> tekan Enter. Pengaturan tersimpan di perangkat ini.');
+                    }
+                    this.$nextTick(() => {
+                        if (this.$refs.scanInput) this.$refs.scanInput.focus();
+                    });
+                },
+
                 hideGudangDropdownDelayed() {
                     setTimeout(() => { this.showGudangList = false; }, 200);
                 },
@@ -1034,8 +1300,127 @@
                     });
                 },
 
+                openAudioIdb() {
+                    return new Promise((resolve, reject) => {
+                        if (!window.indexedDB) {
+                            reject(new Error('IndexedDB tidak didukung'));
+                            return;
+                        }
+                        const req = window.indexedDB.open('vapeboss_checker_audio_idb_v1', 1);
+                        req.onupgradeneeded = e => {
+                            const db = e.target.result;
+                            if (!db.objectStoreNames.contains('sounds')) {
+                                db.createObjectStore('sounds');
+                            }
+                        };
+                        req.onsuccess = e => resolve(e.target.result);
+                        req.onerror = e => reject(e.target.error);
+                    });
+                },
+                async saveAudioToIdb(key, dataUrl) {
+                    try {
+                        const db = await this.openAudioIdb();
+                        return new Promise((resolve, reject) => {
+                            const tx = db.transaction('sounds', 'readwrite');
+                            const store = tx.objectStore('sounds');
+                            if (dataUrl) {
+                                store.put(dataUrl, key);
+                            } else {
+                                store.delete(key);
+                            }
+                            tx.oncomplete = () => resolve(true);
+                            tx.onerror = e => reject(e.target.error);
+                        });
+                    } catch (e) {
+                        try {
+                            if (dataUrl) localStorage.setItem('vapeboss_audio_' + key, dataUrl);
+                            else localStorage.removeItem('vapeboss_audio_' + key);
+                        } catch (err) {}
+                    }
+                },
+                async loadCustomSoundsFromIdb() {
+                    const types = ['kurang', 'klop', 'lebih'];
+                    for (let i = 0; i < types.length; i++) {
+                        const t = types[i];
+                        try {
+                            const db = await this.openAudioIdb();
+                            const dataUrl = await new Promise(resolve => {
+                                const tx = db.transaction('sounds', 'readonly');
+                                const req = tx.objectStore('sounds').get(t);
+                                req.onsuccess = () => resolve(req.result || null);
+                                req.onerror = () => resolve(null);
+                            });
+                            if (dataUrl) {
+                                this.customAudioDataUrls[t] = dataUrl;
+                            } else {
+                                const fallback = localStorage.getItem('vapeboss_audio_' + t);
+                                if (fallback) this.customAudioDataUrls[t] = fallback;
+                            }
+                        } catch (e) {
+                            try {
+                                const fallback = localStorage.getItem('vapeboss_audio_' + t);
+                                if (fallback) this.customAudioDataUrls[t] = fallback;
+                            } catch (err) {}
+                        }
+                    }
+                },
+                onUploadCustomSound(type, event) {
+                    const file = event.target.files && event.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = async e => {
+                        const dataUrl = e.target.result;
+                        this.customAudioDataUrls[type] = dataUrl;
+                        this.soundSettings[type].fileName = file.name;
+                        this.soundSettings[type].mode = 'custom';
+                        await this.saveAudioToIdb(type, dataUrl);
+                        this.saveSoundConfiguration(false);
+                        this.playSound(type);
+                        this.notify('success', 'Nada Berhasil Diupload', `File "${file.name}" dipasang untuk bunyi ${type.toUpperCase()}.`);
+                    };
+                    reader.readAsDataURL(file);
+                    event.target.value = '';
+                },
+                async clearCustomSound(type) {
+                    this.customAudioDataUrls[type] = null;
+                    this.soundSettings[type].fileName = '';
+                    this.soundSettings[type].mode = 'preset_1';
+                    await this.saveAudioToIdb(type, null);
+                    this.saveSoundConfiguration(false);
+                    this.notify('info', 'Nada Upload Dihapus', `Bunyi ${type.toUpperCase()} dikembalikan ke Preset 1.`);
+                },
+                saveSoundConfiguration(closeAfter = true) {
+                    try {
+                        localStorage.setItem('vapeboss_checker_sound_cfg_v1', JSON.stringify(this.soundSettings));
+                    } catch (e) {}
+                    if (closeAfter) {
+                        this.showSoundModal = false;
+                        this.notify('success', 'Pengaturan Nada Disimpan', 'Pilihan bunyi Kurang, Klop, dan Lebih berhasil disimpan.');
+                    }
+                },
+                async resetDefaultSounds() {
+                    const types = ['kurang', 'klop', 'lebih'];
+                    for (let i = 0; i < types.length; i++) {
+                        await this.saveAudioToIdb(types[i], null);
+                        this.customAudioDataUrls[types[i]] = null;
+                        this.soundSettings[types[i]] = { mode: 'preset_1', fileName: '' };
+                    }
+                    this.saveSoundConfiguration(false);
+                    this.notify('info', 'Nada Direset', 'Seluruh bunyi dikembalikan ke pengaturan standar.');
+                },
+
                 playSound(type) {
                     try {
+                        if (type === 'kurang' || type === 'klop' || type === 'lebih') {
+                            const cfg = this.soundSettings[type] || { mode: 'preset_1' };
+                            if (cfg.mode === 'custom' && this.customAudioDataUrls[type]) {
+                                const audio = new Audio(this.customAudioDataUrls[type]);
+                                audio.currentTime = 0;
+                                audio.play().catch(() => {});
+                                return;
+                            }
+                        }
+
                         if (!this.audioCtx) {
                             this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                         }
@@ -1045,7 +1430,7 @@
                         const ctx = this.audioCtx;
                         const now = ctx.currentTime;
 
-                        const playTone = (freq, oscType, startTime, duration, maxGain = 0.22) => {
+                        const playTone = (freq, oscType, startTime, duration, maxGain = 0.24) => {
                             const osc = ctx.createOscillator();
                             const gain = ctx.createGain();
                             osc.type = oscType;
@@ -1059,17 +1444,63 @@
                         };
 
                         if (type === 'klop') {
-                            playTone(523.25, 'sine', now, 0.09, 0.22);
-                            playTone(659.25, 'sine', now + 0.08, 0.09, 0.22);
-                            playTone(783.99, 'sine', now + 0.16, 0.09, 0.24);
-                            playTone(1046.50, 'triangle', now + 0.24, 0.26, 0.28);
+                            const mode = (this.soundSettings.klop && this.soundSettings.klop.mode) || 'preset_1';
+                            if (mode === 'preset_2') {
+                                playTone(880, 'sine', now, 0.12, 0.25);
+                                playTone(1318.5, 'sine', now + 0.11, 0.28, 0.28);
+                            } else if (mode === 'preset_3') {
+                                playTone(1567.98, 'sine', now, 0.14, 0.26);
+                            } else if (mode === 'preset_4') {
+                                playTone(523.25, 'triangle', now, 0.08, 0.22);
+                                playTone(659.25, 'triangle', now + 0.08, 0.08, 0.22);
+                                playTone(783.99, 'triangle', now + 0.16, 0.08, 0.24);
+                                playTone(1046.5, 'triangle', now + 0.24, 0.30, 0.30);
+                            } else if (mode === 'preset_5') {
+                                playTone(1046.5, 'sine', now, 0.10, 0.25);
+                                playTone(1046.5, 'sine', now + 0.14, 0.18, 0.28);
+                            } else {
+                                playTone(523.25, 'sine', now, 0.09, 0.22);
+                                playTone(659.25, 'sine', now + 0.08, 0.09, 0.22);
+                                playTone(783.99, 'sine', now + 0.16, 0.09, 0.24);
+                                playTone(1046.50, 'triangle', now + 0.24, 0.26, 0.28);
+                            }
                         } else if (type === 'kurang') {
-                            playTone(440, 'triangle', now, 0.11, 0.2);
-                            playTone(370, 'triangle', now + 0.13, 0.16, 0.2);
+                            const mode = (this.soundSettings.kurang && this.soundSettings.kurang.mode) || 'preset_1';
+                            if (mode === 'preset_2') {
+                                playTone(600, 'square', now, 0.07, 0.18);
+                                playTone(600, 'square', now + 0.11, 0.07, 0.18);
+                            } else if (mode === 'preset_3') {
+                                playTone(493.88, 'sine', now, 0.20, 0.24);
+                            } else if (mode === 'preset_4') {
+                                playTone(587.33, 'triangle', now, 0.09, 0.22);
+                                playTone(440, 'triangle', now + 0.10, 0.15, 0.22);
+                            } else if (mode === 'preset_5') {
+                                playTone(330, 'sine', now, 0.08, 0.24);
+                                playTone(392, 'sine', now + 0.09, 0.12, 0.24);
+                            } else {
+                                playTone(440, 'triangle', now, 0.11, 0.2);
+                                playTone(370, 'triangle', now + 0.13, 0.16, 0.2);
+                            }
                         } else if (type === 'lebih') {
-                            playTone(880, 'sawtooth', now, 0.11, 0.24);
-                            playTone(620, 'sawtooth', now + 0.12, 0.11, 0.24);
-                            playTone(880, 'sawtooth', now + 0.24, 0.15, 0.26);
+                            const mode = (this.soundSettings.lebih && this.soundSettings.lebih.mode) || 'preset_1';
+                            if (mode === 'preset_2') {
+                                playTone(220, 'sawtooth', now, 0.38, 0.28);
+                            } else if (mode === 'preset_3') {
+                                playTone(987.77, 'square', now, 0.08, 0.24);
+                                playTone(987.77, 'square', now + 0.11, 0.08, 0.24);
+                                playTone(987.77, 'square', now + 0.22, 0.14, 0.26);
+                            } else if (mode === 'preset_4') {
+                                playTone(185, 'sawtooth', now, 0.16, 0.28);
+                                playTone(146.83, 'sawtooth', now + 0.18, 0.26, 0.28);
+                            } else if (mode === 'preset_5') {
+                                playTone(1200, 'sawtooth', now, 0.09, 0.24);
+                                playTone(500, 'sawtooth', now + 0.10, 0.12, 0.24);
+                                playTone(1200, 'sawtooth', now + 0.22, 0.15, 0.26);
+                            } else {
+                                playTone(880, 'sawtooth', now, 0.11, 0.24);
+                                playTone(620, 'sawtooth', now + 0.12, 0.11, 0.24);
+                                playTone(880, 'sawtooth', now + 0.24, 0.15, 0.26);
+                            }
                         } else {
                             playTone(160, 'sawtooth', now, 0.18, 0.28);
                             playTone(130, 'sawtooth', now + 0.20, 0.25, 0.28);
@@ -1149,6 +1580,7 @@
                     item.editMode = true;
                 },
                 closeManualEdit(item, playFeedback = false) {
+                    if (Date.now() < this.barcodeStreamLockUntil) return;
                     item.editMode = false;
                     if (playFeedback) {
                         this.playItemStatusSound(item);
@@ -1156,12 +1588,19 @@
                     this.$nextTick(() => { if (this.$refs.scanInput) this.$refs.scanInput.focus(); });
                 },
                 onManualQtyInput(item, event) {
+                    if (Date.now() < this.barcodeStreamLockUntil) {
+                        event.target.value = item['Fisik'];
+                        return;
+                    }
                     const rawVal = String(event.target.value || '').trim();
                     if (rawVal.length > 4) {
+                        this.barcodeStreamLockUntil = Date.now() + 900;
+                        event.target.value = item['Fisik'];
+                        event.target.blur();
+                        item.editMode = false;
                         this.playSound('error');
                         this.triggerErrorShake();
-                        this.openBarcodeWarningModal(rawVal, 'Input manual pada tabel melebihi 4 digit (terdeteksi sebagai scan barcode). Angka telah dibersihkan kembali ke nilai sebelumnya tanpa perlu refresh halaman.');
-                        event.target.value = item['Fisik'];
+                        this.openBarcodeWarningModal(rawVal, 'Input manual pada tabel melebihi 4 digit (terdeteksi sebagai tembakan barcode). Sistem otomatis mengunci aliran digit barcode agar ekor angka tidak merusak kuantitas barang.');
                         return;
                     }
                     const parsed = parseInt(rawVal, 10);
@@ -1234,7 +1673,10 @@
                         }
                     });
                 },
+
                 handleScanEnter() {
+                    if (Date.now() < this.barcodeStreamLockUntil) return;
+
                     if (this.customSuggestionsList.length > 0) {
                         if (this.customSuggestionsList.length === 1) {
                             this.selectCustomSuggestion(this.customSuggestionsList[0]['Nama Barang']);
@@ -1245,15 +1687,15 @@
                             return;
                         }
                     }
-                    this.moveToQty();
+                    this.processScanOrManualStep();
                 },
                 selectCustomSuggestion(name) {
                     this.currentScan = name;
                     this.suggestionIndex = -1;
-                    this.$nextTick(() => { this.moveToQty(); });
+                    this.$nextTick(() => { this.processScanOrManualStep(); });
                 },
 
-                moveToQty() {
+                processScanOrManualStep() {
                     if (!this.checkerForm.cabang || !this.checkerForm.noIt) {
                         this.playSound('error');
                         this.triggerErrorShake();
@@ -1263,15 +1705,8 @@
                     }
                     if (!this.currentScan) return;
 
-                    if (this.foundItemLive) {
-                        this.currentScanQty = '1';
-                        this.$nextTick(() => {
-                            if (this.$refs.qtyInput) {
-                                this.$refs.qtyInput.focus();
-                                this.$refs.qtyInput.select();
-                            }
-                        });
-                    } else {
+                    const item = this.foundItemLive;
+                    if (!item) {
                         this.playSound('error');
                         this.triggerErrorShake();
                         this.notify('error', 'Barang Tidak Ditemukan!', `"${this.currentScan}" telah dibersihkan otomatis. Silakan scan/input barang yang benar.`);
@@ -1279,82 +1714,11 @@
                         this.$nextTick(() => {
                             if (this.$refs.scanInput) this.$refs.scanInput.focus();
                         });
-                    }
-                },
-
-                openBarcodeWarningModal(rawVal, customMessage = '') {
-                    const matched = this.routeLookupMap.byCode.get(String(rawVal).trim().toLowerCase()) || null;
-                    this.barcodeWarningModal = {
-                        show: true,
-                        scannedValue: rawVal,
-                        matchedItem: matched,
-                        message: customMessage || (
-                            matched
-                                ? `Anda tidak sengaja melakukan scan barcode barang "${matched['Nama Barang']}" di dalam kolom Kuantitas (>4 digit). Input salah telah dibersihkan otomatis tanpa memuat ulang halaman.`
-                                : `Kolom Kuantitas menerima input lebih dari 4 digit (${rawVal.length} karakter). Sistem telah membersihkan input tersebut agar Anda bisa langsung mengisi kuantitas yang benar.`
-                        )
-                    };
-                    this.$nextTick(() => {
-                        if (this.$refs.warningOkBtn) this.$refs.warningOkBtn.focus();
-                    });
-                },
-                dismissBarcodeWarningModal() {
-                    this.barcodeWarningModal.show = false;
-                    this.currentScanQty = '1';
-                    this.$nextTick(() => {
-                        if (this.$refs.qtyInput) {
-                            this.$refs.qtyInput.focus();
-                            this.$refs.qtyInput.select();
-                        }
-                    });
-                },
-                switchFromQtyBarcodeWarning() {
-                    const matched = this.barcodeWarningModal.matchedItem;
-                    this.barcodeWarningModal.show = false;
-                    if (matched) {
-                        this.currentScan = matched['Kode Barang'];
-                        this.currentScanQty = '1';
-                        this.$nextTick(() => {
-                            if (this.$refs.qtyInput) {
-                                this.$refs.qtyInput.focus();
-                                this.$refs.qtyInput.select();
-                            }
-                        });
-                    }
-                },
-                onScanQtyLiveInput() {
-                    const cleaned = String(this.currentScanQty || '').trim();
-                    if (cleaned.length > 4) {
-                        this.playSound('error');
-                        this.triggerErrorShake();
-                        this.notify('error', 'Peringatan: Input > 4 Digit!', 'Input dibersihkan otomatis. Silakan ketik kuantitas yang benar.');
-                        this.openBarcodeWarningModal(cleaned);
-                        this.currentScanQty = '1';
-                    }
-                },
-
-                submitScan() {
-                    if (this.barcodeWarningModal.show) {
-                        this.dismissBarcodeWarningModal();
-                        return;
-                    }
-                    if (!this.foundItemLive) return;
-
-                    const rawQtyStr = String(this.currentScanQty || '').trim();
-
-                    if (rawQtyStr.length > 4 || Number(rawQtyStr) > 9999) {
-                        this.playSound('error');
-                        this.triggerErrorShake();
-                        this.notify('error', 'Peringatan: Input > 4 Digit!', `Input "${rawQtyStr}" telah dibersihkan otomatis.`);
-                        this.openBarcodeWarningModal(rawQtyStr);
-                        this.currentScanQty = '1';
                         return;
                     }
 
-                    const parsedQty = parseInt(rawQtyStr, 10);
-                    if (isNaN(parsedQty) || parsedQty <= 0) {
-                        this.playSound('error');
-                        this.notify('warning', 'Kuantitas Tidak Valid', 'Input telah direset ke 1. Masukkan angka antara 1 sampai 9999.');
+                    if (this.scanInputMode === 'manual') {
+                        this.lastScannedItem = item;
                         this.currentScanQty = '1';
                         this.$nextTick(() => {
                             if (this.$refs.qtyInput) {
@@ -1365,10 +1729,21 @@
                         return;
                     }
 
-                    const item = this.foundItemLive;
-                    item['Fisik'] = (Number(item['Fisik']) || 0) + parsedQty;
-                    // Catat setiap jam realtime saat checker menembakkan alat scan & menekan Enter (misal 11:00 dan 12:00)
-                    this.recordRealtimeAction(item, 'SCAN', `Scan +${parsedQty} -> Fisik: ${item['Fisik']}`, 0);
+                    this.executeDirectScan(item);
+                },
+
+                executeDirectScan(passedItem = null) {
+                    const item = passedItem || this.foundItemLive;
+                    if (!item) return;
+
+                    const addQty = this.getPackSizeForItem(item);
+                    item['Fisik'] = (Number(item['Fisik']) || 0) + addQty;
+
+                    const logLabel = addQty > 1
+                        ? `Scan +${addQty} [1 Pack] -> Fisik: ${item['Fisik']}`
+                        : `Scan +1 -> Fisik: ${item['Fisik']}`;
+                    this.recordRealtimeAction(item, 'SCAN', logLabel, 0);
+
                     this.lastScannedItem = item;
                     this.persistItemState(item);
 
@@ -1381,14 +1756,117 @@
                     const target = Number(item['Kuantitas']) || 0;
                     if (item['Fisik'] > target) {
                         this.playSound('lebih');
-                        this.notify('warning', 'Kuantitas Berlebih!', `${item['Nama Barang']} (${item['Fisik']}/${target}) melebihi target.`);
+                        this.notify('warning', 'Kuantitas Berlebih!', `${item['Nama Barang']} (+${addQty} -> ${item['Fisik']}/${target}) melebihi target.`);
                     } else if (item['Fisik'] === target && target > 0) {
                         this.playSound('klop');
                         this.notify('success', 'Kuantitas Klop!', `${item['Nama Barang']} pas ${target} Pcs.`);
                     } else {
                         this.playSound('kurang');
+                        if (addQty > 1) {
+                            this.notify('info', `Scan Pack Of (+${addQty} Pcs)`, `${item['Nama Barang']}: Fisik ${item['Fisik']} / ${target} Pcs.`);
+                        }
                     }
 
+                    this.currentScan = '';
+                    this.suggestionIndex = -1;
+                    this.$nextTick(() => {
+                        if (this.$refs.scanInput) this.$refs.scanInput.focus();
+                    });
+                },
+
+                openBarcodeWarningModal(rawVal, customMessage = '') {
+                    const matched = this.routeLookupMap.byCode.get(String(rawVal).trim().toLowerCase()) || null;
+                    this.barcodeWarningModal = {
+                        show: true,
+                        scannedValue: rawVal,
+                        matchedItem: matched,
+                        message: customMessage || (
+                            matched
+                                ? `Anda menembakkan barcode "${matched['Nama Barang']}" di dalam kolom Kuantitas Manual (>4 digit). Aliran digit barcode telah dikunci agar tidak menimbulkan angka 9 atau 700.`
+                                : `Kolom Kuantitas Manual menerima input lebih dari 4 digit (${rawVal.length} karakter). Input tersebut telah dibatalkan secara otomatis.`
+                        )
+                    };
+                    this.$nextTick(() => {
+                        if (this.$refs.warningOkBtn) this.$refs.warningOkBtn.focus();
+                    });
+                },
+                dismissBarcodeWarningModal() {
+                    this.barcodeWarningModal.show = false;
+                    this.currentScanQty = '';
+                    this.$nextTick(() => {
+                        if (this.$refs.scanInput) this.$refs.scanInput.focus();
+                    });
+                },
+                processMatchedItemFromWarning() {
+                    const matched = this.barcodeWarningModal.matchedItem;
+                    this.barcodeWarningModal.show = false;
+                    this.currentScanQty = '';
+                    if (matched) {
+                        this.currentScan = String(matched['Kode Barang']);
+                        this.executeDirectScan();
+                    }
+                },
+                onScanQtyLiveInput(event) {
+                    if (Date.now() < this.barcodeStreamLockUntil) {
+                        this.currentScanQty = '';
+                        return;
+                    }
+                    const cleaned = String(this.currentScanQty || '').trim();
+                    if (cleaned.length > 4) {
+                        this.barcodeStreamLockUntil = Date.now() + 900;
+                        this.currentScanQty = '';
+                        if (event && event.target) event.target.blur();
+                        this.playSound('error');
+                        this.triggerErrorShake();
+                        this.notify('error', 'Peringatan: Input > 4 Digit!', 'Terdeteksi tembakan barcode di kolom manual. Input telah dibersihkan.');
+                        this.openBarcodeWarningModal(cleaned);
+                    }
+                },
+
+                submitManualTopQty() {
+                    if (Date.now() < this.barcodeStreamLockUntil) return;
+                    if (this.barcodeWarningModal.show) {
+                        this.dismissBarcodeWarningModal();
+                        return;
+                    }
+                    const targetItem = this.foundItemLive || this.lastScannedItem;
+                    if (!targetItem) {
+                        this.notify('warning', 'Pilih / Scan Barang Dahulu', 'Scan atau pilih barang terlebih dahulu sebelum menambah kuantitas manual.');
+                        return;
+                    }
+
+                    const rawQtyStr = String(this.currentScanQty || '').trim();
+                    if (!rawQtyStr) return;
+
+                    if (rawQtyStr.length > 4 || Number(rawQtyStr) > 9999) {
+                        this.barcodeStreamLockUntil = Date.now() + 900;
+                        this.currentScanQty = '';
+                        this.playSound('error');
+                        this.triggerErrorShake();
+                        this.openBarcodeWarningModal(rawQtyStr);
+                        return;
+                    }
+
+                    const parsedQty = parseInt(rawQtyStr, 10);
+                    if (isNaN(parsedQty) || parsedQty <= 0) {
+                        this.playSound('error');
+                        this.notify('warning', 'Kuantitas Tidak Valid', 'Masukkan angka manual antara 1 sampai 9999.');
+                        this.currentScanQty = '';
+                        return;
+                    }
+
+                    targetItem['Fisik'] = (Number(targetItem['Fisik']) || 0) + parsedQty;
+                    this.recordRealtimeAction(targetItem, 'MANUAL_TOP', `Manual +${parsedQty} -> Fisik: ${targetItem['Fisik']}`, 0);
+                    this.lastScannedItem = targetItem;
+                    this.persistItemState(targetItem);
+
+                    targetItem.highlight = false;
+                    this.$nextTick(() => {
+                        targetItem.highlight = true;
+                        setTimeout(() => { targetItem.highlight = false; }, 1500);
+                    });
+
+                    this.playItemStatusSound(targetItem);
                     this.currentScan = '';
                     this.currentScanQty = '';
                     this.suggestionIndex = -1;
@@ -1459,8 +1937,15 @@
                 async fetchCheckerData() {
                     this.loading = true;
                     try {
+                        this.loadPackOfSheetLive();
                         const result = await this.fetchWithRetry(`${this.apiUrl}?action=checker`, { redirect: "follow" }, 3);
                         if (result.status === 'success') {
+                            if (result.pack_of && typeof result.pack_of === 'object') {
+                                this.packOfMap = Object.assign({}, DEFAULT_PACK_OF_MAP, this.packOfMap, result.pack_of);
+                                try {
+                                    localStorage.setItem('checkerPackOfMap_v1', JSON.stringify(this.packOfMap));
+                                } catch (e) {}
+                            }
                             this.checkerItems = result.data.map(item => {
                                 const key = `${item['Gudang Tujuan/Dari']}__${item['No. Pemindahan #']}__${item['Kode Barang']}`;
                                 const saved = this.savedProgress[key];
@@ -1481,7 +1966,7 @@
                             try {
                                 localStorage.setItem('checkerItemsCache_v1', JSON.stringify(this.checkerItems));
                             } catch (e) {}
-                            this.notify('success', 'Data Berhasil Ditarik', `${this.checkerItems.length} item terbaru dari Spreadsheet siap digunakan.`);
+                            this.notify('success', 'Data Berhasil Ditarik', `${this.checkerItems.length} item Kuantitas & pengaturan Pack Of siap digunakan.`);
                         } else {
                             this.notify('error', 'Gagal dari Server', result.message);
                         }
