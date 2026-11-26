@@ -27,6 +27,9 @@
             font-size: 0.78rem; 
             letter-spacing: 0.03em;
         }
+        .checker-table th.text-center {
+            text-align: center;
+        }
         .checker-table td { 
             padding: 9px 12px; 
             border: 1px solid #e2e8f0; 
@@ -261,15 +264,24 @@
                 </div>
             </div>
 
-            <!-- Kolom Kanan: Lihat Rekap Selisih, Simpan Hasil Checker & Status Simpan -->
+            <!-- Kolom Kanan: Lihat Rekap Selisih, Cetak Barcode, Simpan Hasil Checker & Status Simpan -->
             <div class="lg:col-span-5 flex flex-col items-end justify-center gap-2.5">
-                <button @click="showRekapModal = true" 
-                        class="w-full sm:w-11/12 bg-[#f59e0b] hover:bg-amber-400 text-white py-3.5 px-6 rounded-2xl font-black text-lg tracking-wide shadow-md transition-transform active:scale-95 flex items-center justify-center gap-2">
-                    <span>Lihat Rekap Selisih</span>
-                    <span v-if="rekapSelisihList.length > 0" class="bg-amber-900/80 text-white text-xs font-extrabold px-2.5 py-0.5 rounded-full">
-                        {{ rekapSelisihList.length }}
-                    </span>
-                </button>
+                <div class="w-full flex gap-2">
+                    <button @click="showRekapModal = true" 
+                            class="flex-1 bg-[#f59e0b] hover:bg-amber-400 text-white py-3.5 px-4 rounded-2xl font-black text-base tracking-wide shadow-md transition-transform active:scale-95 flex items-center justify-center gap-2">
+                        <span>Rekap Selisih</span>
+                        <span v-if="rekapSelisihList.length > 0" class="bg-amber-900/80 text-white text-xs font-extrabold px-2 py-0.5 rounded-full">
+                            {{ rekapSelisihList.length }}
+                        </span>
+                    </button>
+                    <button @click="openBarcodePrintModal" 
+                            class="bg-purple-700 hover:bg-purple-800 text-white py-3.5 px-4 rounded-2xl font-black text-base tracking-wide shadow-md transition-transform active:scale-95 flex items-center justify-center gap-1.5 shrink-0">
+                        <span>Cetak Barcode</span>
+                        <span v-if="barcodeFlaggedItems.length > 0" class="bg-white text-purple-900 text-xs font-black px-2 py-0.5 rounded-full">
+                            {{ barcodeFlaggedItems.length }}
+                        </span>
+                    </button>
+                </div>
 
                 <button @click="saveCheckerData" :disabled="loading || isSaving"
                         class="w-full disabled:opacity-60 text-white py-3.5 px-6 rounded-2xl font-black text-lg tracking-wide shadow-md transition-transform active:scale-95 flex items-center justify-center gap-2"
@@ -304,6 +316,8 @@
                     </label>
                     <div class="relative">
                         <input ref="scanInput" type="text" v-model="currentScan" 
+                               @keydown="onScanInputKeydown"
+                               @paste="onScanInputPaste"
                                @keydown.down.prevent="navigateSuggestion(1)"
                                @keydown.up.prevent="navigateSuggestion(-1)"
                                @keydown.enter.prevent="handleScanEnter"
@@ -329,7 +343,14 @@
                              @mouseenter="suggestionIndex = idx"
                              :class="idx === suggestionIndex ? 'bg-blue-600 text-white' : 'hover:bg-blue-50 text-slate-700'"
                              class="px-4 py-2.5 border-b border-slate-100 cursor-pointer flex justify-between items-center text-xs font-bold transition-colors">
-                            <span>{{ sug['Nama Barang'] }}</span>
+                            <div class="flex items-center gap-2">
+                                <span>{{ sug['Nama Barang'] }}</span>
+                                <span v-if="isItemManualLocked(sug)"
+                                      class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase"
+                                      :class="idx === suggestionIndex ? 'bg-red-500 text-white' : 'bg-red-100 text-red-700'">
+                                    Wajib Scan
+                                </span>
+                            </div>
                             <span class="font-mono" :class="idx === suggestionIndex ? 'text-blue-100' : 'text-slate-400'">{{ sug['Kode Barang'] }}</span>
                         </div>
                     </div>
@@ -484,9 +505,14 @@
                             class="transition-colors duration-200">
                             <td class="text-xs">
                                 <div>{{ item['Kategori'] }}</div>
-                                <span v-if="getPackSizeForItem(item) > 1" class="inline-block mt-0.5 bg-purple-100 text-purple-800 border border-purple-300 text-[9px] font-extrabold px-1.5 py-0.2 rounded">
-                                    1 Pack = {{ getPackSizeForItem(item) }} Pcs
-                                </span>
+                                <div class="flex flex-wrap gap-1 mt-0.5">
+                                    <span v-if="getPackSizeForItem(item) > 1" class="inline-block bg-purple-100 text-purple-800 border border-purple-300 text-[9px] font-extrabold px-1.5 py-0.2 rounded">
+                                        1 Pack = {{ getPackSizeForItem(item) }} Pcs
+                                    </span>
+                                    <span v-if="isItemManualLocked(item)" class="inline-block bg-red-100 text-red-700 border border-red-300 text-[9px] font-black px-1.5 py-0.2 rounded uppercase">
+                                        Wajib Scan
+                                    </span>
+                                </div>
                             </td>
                             <td class="font-mono text-xs text-slate-600">{{ item['Kode Barang'] }}</td>
                             <td class="text-xs leading-snug">
@@ -500,9 +526,18 @@
                             </td>
                             <td class="text-center text-base font-black">{{ item['Kuantitas'] || 0 }}</td>
                             
-                            <!-- Klik Angka Fisik Langsung (Input Manual Tidak Berubah, Satuan Pcs Murni) -->
+                            <!-- Klik Angka Fisik Langsung (Terkunci Jika Kategori Wajib Scan) -->
                             <td class="text-center">
-                                <div v-if="!item.editMode" @click="openManualEdit(item)" 
+                                <div v-if="isItemManualLocked(item)"
+                                     @click="notifyCategoryLocked(item)"
+                                     class="text-base font-black py-1 px-3 rounded-lg inline-flex items-center justify-center gap-1 min-w-[44px] bg-slate-100/80 text-slate-700 border border-slate-300 cursor-not-allowed select-none"
+                                     title="Kategori terkunci (Wajib Scan)">
+                                    <span>{{ item['Fisik'] }}</span>
+                                    <svg class="w-3.5 h-3.5 text-red-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                                    </svg>
+                                </div>
+                                <div v-else-if="!item.editMode" @click="openManualEdit(item)" 
                                      class="text-base font-black cursor-pointer hover:bg-blue-100/80 border border-transparent hover:border-blue-300 py-1 px-3 rounded-lg transition inline-block min-w-[44px]" 
                                      title="Klik angka untuk ubah manual (satuan Pcs)">
                                     {{ item['Fisik'] }}
@@ -636,6 +671,12 @@
                     Portal Checker (C)
                     <span class="block text-[10px] font-sans font-bold text-blue-900 uppercase tracking-wider">Portal Checker Aktif</span>
                 </button>
+
+                <a :href="config.barcodeUrl" 
+                   class="w-full max-w-[280px] border-y-4 border-purple-700 py-2.5 text-purple-800 font-bold text-2xl font-serif tracking-wide hover:bg-black/5 transition-colors text-center no-underline block">
+                    Portal Barcode (D)
+                    <span class="block text-[10px] font-sans font-bold text-purple-900 uppercase tracking-wider">Cetak Label &amp; Antrean Zebra</span>
+                </a>
             </div>
             <div class="mt-5 text-center">
                 <button @click="portalMenuOpen = false" class="text-xs font-extrabold text-slate-800 hover:text-black underline">
@@ -784,7 +825,33 @@
                             </button>
                         </div>
 
-                        <!-- B. Hapus Data Inputan Checker -->
+                        <!-- B. Lock Input Manual per Kategori (Wajib Scan) -->
+                        <div class="border border-amber-300 bg-amber-50/40 rounded-xl p-3.5 space-y-2.5">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="font-extrabold text-xs uppercase text-amber-950">Lock Input Manual (Wajib Scan)</span>
+                                <div class="flex items-center gap-2">
+                                    <button type="button" @click="lockAllCategories" class="text-[11px] font-extrabold text-red-700 hover:underline">Lock Semua</button>
+                                    <span class="text-slate-300">|</span>
+                                    <button type="button" @click="unlockAllCategories" class="text-[11px] font-extrabold text-slate-600 hover:underline">Buka Semua</button>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button v-for="cat in allLockableCategories" :key="cat"
+                                        type="button"
+                                        @click="toggleLockedCategory(cat)"
+                                        class="px-3 py-2 rounded-lg border text-xs font-extrabold flex items-center justify-between transition-all"
+                                        :class="isCategoryLockedName(cat) ? 'bg-red-600 border-red-700 text-white shadow-sm' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'">
+                                    <span class="truncate">{{ cat }}</span>
+                                    <span class="text-[10px] font-black uppercase ml-1.5">{{ isCategoryLockedName(cat) ? 'LOCK' : 'OPEN' }}</span>
+                                </button>
+                            </div>
+                            <button type="button" @click="saveLockedCategoriesFromAdmin" :disabled="isSavingLockCentral"
+                                    class="w-full bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white font-extrabold text-xs py-2.5 rounded-lg shadow-sm transition">
+                                {{ isSavingLockCentral ? 'Menyimpan Lock...' : 'Simpan Pengaturan Lock' }}
+                            </button>
+                        </div>
+
+                        <!-- C. Hapus Data Inputan Checker -->
                         <div class="border border-red-200 bg-red-50/40 rounded-xl p-3.5 space-y-2.5">
                             <span class="block font-extrabold text-xs uppercase text-red-900">Hapus Data Inputan</span>
                             <select v-model="adminDeleteTargetKey" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-bold text-slate-800 bg-white outline-none">
@@ -817,7 +884,7 @@
 
                 <!-- 3. LINK ANTAR PORTAL (A, B, C) -->
                 <div class="border border-slate-200 rounded-xl p-3.5 space-y-2.5 bg-slate-50">
-                    <span class="block font-extrabold text-xs uppercase text-slate-700">Link Antar Portal (A, B, C)</span>
+                    <span class="block font-extrabold text-xs uppercase text-slate-700">Link Antar Portal (A, B, C, D)</span>
                     <div class="space-y-2">
                         <div>
                             <label class="block text-[10px] font-bold text-slate-500 mb-0.5">Portal A (Homepage &amp; Rute)</label>
@@ -831,6 +898,10 @@
                             <label class="block text-[10px] font-bold text-slate-500 mb-0.5">Portal C (Checker)</label>
                             <input type="text" v-model="config.checkerUrl" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-800 bg-white outline-none">
                         </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-0.5">Portal D (Barcode)</label>
+                            <input type="text" v-model="config.barcodeUrl" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-800 bg-white outline-none">
+                        </div>
                     </div>
                     <div class="flex justify-end gap-2 pt-1">
                         <button @click="resetConfig" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-200">Reset Link</button>
@@ -838,6 +909,65 @@
                     </div>
                 </div>
 
+            </div>
+        </div>
+
+        <!-- 4B. MODAL CETAK BARCODE DARI PORTAL CHECKER (EDIT KODE & QTY -> PRINT / ANTREAN FIFO) -->
+        <div v-if="showBarcodePrintModal" @click.stop class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" @keydown.esc="showBarcodePrintModal = false">
+            <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+                <div class="bg-purple-900 text-white px-6 py-4 flex justify-between items-center">
+                    <div>
+                        <h3 class="font-black text-base uppercase tracking-wider">Cetak Barcode (Antrean Zebra)</h3>
+                        <p class="text-[11px] text-purple-200 mt-0.5">Periksa &amp; ubah Kode Barang atau Qty sebelum menekan Print</p>
+                    </div>
+                    <button @click="showBarcodePrintModal = false" title="Tutup" class="text-purple-200 hover:text-white font-black text-xl">X</button>
+                </div>
+                <div class="p-5 overflow-y-auto flex-1 bg-slate-50">
+                    <table v-if="barcodePrintDraft.length > 0" class="w-full checker-table border-collapse bg-white shadow-sm rounded-lg overflow-hidden">
+                        <thead>
+                            <tr>
+                                <th class="w-3/12">Kode Barang</th>
+                                <th class="w-6/12">Nama Barang</th>
+                                <th class="w-2/12 text-center">Qty Cetak</th>
+                                <th class="w-1/12 text-center">Hapus</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(row, idx) in barcodePrintDraft" :key="idx">
+                                <td>
+                                    <input type="text" v-model="row.kode"
+                                           class="w-full border border-slate-300 focus:border-purple-600 rounded px-2 py-1.5 font-mono text-xs font-bold text-slate-900 outline-none">
+                                </td>
+                                <td class="text-xs font-bold text-slate-800">{{ row.nama }}</td>
+                                <td class="text-center">
+                                    <input type="number" min="1" max="9999" v-model.number="row.qty"
+                                           class="w-20 border-2 border-purple-300 focus:border-purple-600 rounded px-2 py-1 text-center font-black text-sm text-slate-900 outline-none">
+                                </td>
+                                <td class="text-center">
+                                    <button @click="barcodePrintDraft.splice(idx, 1)" class="bg-red-100 hover:bg-red-200 text-red-700 font-black text-xs px-2.5 py-1.5 rounded-lg">X</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div v-else class="text-center py-12 text-slate-500 border-2 border-dashed border-slate-300 rounded-2xl bg-white">
+                        <p class="font-extrabold text-sm text-slate-700">Belum ada barang bertanda "Cetak Barcode"</p>
+                        <p class="text-xs mt-1">Pilih keterangan "Cetak Barcode" pada kolom KET barang yang ingin dicetak.</p>
+                    </div>
+                </div>
+                <div class="bg-white px-6 py-4 flex flex-wrap justify-between items-center gap-2 border-t border-slate-200">
+                    <span class="text-xs font-bold text-slate-600">
+                        Total: <strong>{{ barcodePrintDraft.length }} SKU</strong> ({{ barcodePrintTotalQty }} Stiker)
+                    </span>
+                    <div class="flex items-center gap-2">
+                        <button @click="showBarcodePrintModal = false" class="bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2.5 rounded-xl font-bold text-xs">
+                            Tutup
+                        </button>
+                        <button @click="sendBarcodePrintQueue" :disabled="isSendingBarcodeQueue || barcodePrintDraft.length === 0"
+                                class="bg-purple-700 hover:bg-purple-800 disabled:opacity-50 text-white px-6 py-2.5 rounded-xl font-black text-xs shadow-md transition active:scale-95">
+                            {{ isSendingBarcodeQueue ? 'Mengirim ke Antrean...' : 'Print / Kirim ke Portal Barcode' }}
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -871,7 +1001,11 @@
                                 <td class="text-center font-black text-base text-slate-800">{{ item['Kuantitas'] || 0 }}</td>
                                 
                                 <td class="text-center">
-                                    <div class="inline-flex items-center justify-center gap-1">
+                                    <div v-if="isItemManualLocked(item)" class="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 font-black text-sm">
+                                        <span>{{ item['Fisik'] }}</span>
+                                        <span class="text-[10px] font-black text-red-700 uppercase">Wajib Scan</span>
+                                    </div>
+                                    <div v-else class="inline-flex items-center justify-center gap-1">
                                         <button @click="adjustFisik(item, -1)" class="bg-red-500 hover:bg-red-600 text-white w-7 h-7 rounded font-black text-sm">-</button>
                                         <input type="text" inputmode="numeric"
                                                :value="item['Fisik']"
@@ -940,6 +1074,7 @@
                 let savedRouteDirtyMap = {};
                 let savedResetAppliedMap = {};
                 let savedAdminEmail = '';
+                let savedLockedCats = [];
                 try {
                     savedForm = JSON.parse(localStorage.getItem('checkerForm_v2'));
                     savedLock = JSON.parse(localStorage.getItem('isCheckerLocked_v2')) || false;
@@ -967,6 +1102,8 @@
                     savedRouteDirtyMap = JSON.parse(localStorage.getItem('vapeboss_checker_route_dirty_v1')) || {};
                     savedResetAppliedMap = JSON.parse(localStorage.getItem('vapeboss_checker_reset_tokens_v1')) || {};
                     savedAdminEmail = String(localStorage.getItem('vapeboss_checker_admin_email_v1') || '').trim().toLowerCase();
+                    savedLockedCats = JSON.parse(localStorage.getItem('vapeboss_checker_locked_cats_v1')) || [];
+                    if (!Array.isArray(savedLockedCats)) savedLockedCats = [];
                 } catch (e) {}
 
                 return {
@@ -984,7 +1121,7 @@
                     savedProgress: savedProg,
                     checkerFilter: { kategori: 'Semua Kategori', status: 'Semua' },
                     
-                    keteranganOptions: ['Barang Tidak Ada', 'Tukar Jual', 'Bocor', 'Qty Tidak Sesuai'],
+                    keteranganOptions: ['Barang Tidak Ada', 'Tukar Jual', 'Bocor', 'Qty Tidak Sesuai', 'Cetak Barcode'],
                     
                     scanInputMode: savedScanMode,
                     scanModeByPic: savedScanModeByPic,
@@ -1002,6 +1139,9 @@
                     showNoItList: false,
                     showFilterMenu: false,
                     showRekapModal: false,
+                    showBarcodePrintModal: false,
+                    barcodePrintDraft: [],
+                    isSendingBarcodeQueue: false,
                     barcodeWarningModal: {
                         show: false,
                         scannedValue: '',
@@ -1012,8 +1152,14 @@
                     adminEmail: savedAdminEmail === ADMIN_EMAIL_ALLOWED ? ADMIN_EMAIL_ALLOWED : '',
                     adminEmailInput: '',
                     isSavingSoundCentral: false,
+                    isSavingLockCentral: false,
                     isDeletingAdminData: false,
                     adminDeleteTargetKey: '',
+
+                    lockedCategories: savedLockedCats,
+                    lockedCategoriesUpdatedAt: 0,
+                    scanKeyTimestamps: [],
+                    scanWasPasted: false,
 
                     soundVolume: savedVolume,
                     centralSoundUpdatedAt: 0,
@@ -1041,11 +1187,12 @@
                     audioCtx: null,
                     storageTimer: null,
                     syncIntervalId: null,
-                    config: savedConfig || {
+                    config: Object.assign({
                         homeUrl: 'https://byteandbay.github.io/portal-utama/',
                         pickerUrl: 'https://byteandbay.github.io/picker-webapp/',
-                        checkerUrl: 'https://byteandbay.github.io/portal-checker/'
-                    }
+                        checkerUrl: 'https://byteandbay.github.io/portal-checker/',
+                        barcodeUrl: 'https://byteandbay.github.io/portal-barcode/'
+                    }, savedConfig || {})
                 };
             },
             watch: {
@@ -1074,7 +1221,11 @@
                         localStorage.setItem('isCheckerLocked_v2', JSON.stringify(newVal));
                     } catch (e) {}
                 },
-                currentScan() {
+                currentScan(val) {
+                    if (!val) {
+                        this.scanKeyTimestamps = [];
+                        this.scanWasPasted = false;
+                    }
                     this.$nextTick(() => {
                         if (this.customSuggestionsList.length === 1) {
                             this.suggestionIndex = 0;
@@ -1087,6 +1238,22 @@
             computed: {
                 isAdminLoggedIn() {
                     return this.adminEmail === ADMIN_EMAIL_ALLOWED;
+                },
+                allLockableCategories() {
+                    const base = ['Liquid', 'Device', 'Accessories', 'Nicotine Pouch'];
+                    const map = new Map();
+                    const addCat = (c) => {
+                        const clean = String(c || '').trim();
+                        if (!clean) return;
+                        const low = clean.toLowerCase();
+                        if (!map.has(low)) map.set(low, clean);
+                    };
+                    base.forEach(addCat);
+                    for (let i = 0; i < this.checkerItems.length; i++) {
+                        addCat(this.checkerItems[i]['Kategori']);
+                    }
+                    this.lockedCategories.forEach(addCat);
+                    return Array.from(map.values());
                 },
                 activeRouteKey() {
                     if (!this.checkerForm.cabang || !this.checkerForm.noIt) return '';
@@ -1253,6 +1420,12 @@
                 rekapSelisihList() {
                     return this.routeItems.filter(i => i['Fisik'] !== (i['Kuantitas'] || 0) || (i['Keterangan'] && i['Keterangan'] !== ''));
                 },
+                barcodeFlaggedItems() {
+                    return this.routeItems.filter(i => String(i['Keterangan'] || '').trim() === 'Cetak Barcode');
+                },
+                barcodePrintTotalQty() {
+                    return this.barcodePrintDraft.reduce((s, r) => s + (Math.max(0, parseInt(r.qty, 10) || 0)), 0);
+                },
                 foundItemLive() {
                     if (!this.currentScan) return null;
                     const scanStr = this.currentScan.trim().toLowerCase();
@@ -1297,6 +1470,63 @@
                 }, 25000);
             },
             methods: {
+                openBarcodePrintModal() {
+                    this.barcodePrintDraft = this.barcodeFlaggedItems.map(item => {
+                        const target = Number(item['Kuantitas']) || 0;
+                        const fisik = Number(item['Fisik']) || 0;
+                        const sisa = target - fisik;
+                        const defaultQty = sisa > 0 ? sisa : (target > 0 ? target : 1);
+                        return {
+                            kode: String(item['Kode Barang'] || '').trim(),
+                            nama: String(item['Nama Barang'] || '').trim(),
+                            qty: defaultQty
+                        };
+                    });
+                    this.showBarcodePrintModal = true;
+                },
+                async sendBarcodePrintQueue() {
+                    if (this.isSendingBarcodeQueue) return;
+                    const validItems = this.barcodePrintDraft
+                        .map(r => ({
+                            kode: String(r.kode || '').trim(),
+                            nama: String(r.nama || '').trim(),
+                            qty: parseInt(r.qty, 10) || 0
+                        }))
+                        .filter(r => r.kode !== '' && r.qty > 0);
+
+                    if (validItems.length === 0) {
+                        this.notify('warning', 'Daftar Kosong', 'Pastikan Kode Barang dan Qty valid.');
+                        return;
+                    }
+
+                    this.isSendingBarcodeQueue = true;
+                    try {
+                        const result = await this.fetchWithRetry(this.apiUrl, {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                barcode_action: 'enqueue',
+                                pic: this.checkerForm.pic || 'Checker',
+                                cabang: this.checkerForm.cabang || '-',
+                                no_it: this.checkerForm.noIt || '-',
+                                items: validItems
+                            }),
+                            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                        }, 3);
+
+                        if (result && result.status === 'success') {
+                            this.playSound('klop');
+                            this.showBarcodePrintModal = false;
+                            this.notify('success', 'Masuk Antrean Cetak', `${validItems.length} SKU (${this.barcodePrintTotalQty} stiker) dikirim ke Portal Barcode.`);
+                        } else {
+                            this.notify('error', 'Gagal Kirim Antrean', (result && result.message) || 'Terjadi kesalahan.');
+                        }
+                    } catch (e) {
+                        this.notify('error', 'Gangguan Jaringan', 'Gagal mengirim antrean cetak barcode. Silakan coba lagi.');
+                    } finally {
+                        this.isSendingBarcodeQueue = false;
+                    }
+                },
+
                 openSettingsModal() {
                     if (this.checkerForm.cabang && this.checkerForm.noIt) {
                         this.adminDeleteTargetKey = `${this.checkerForm.cabang}__${this.checkerForm.noIt}`;
@@ -1474,6 +1704,107 @@
                     }
                 },
 
+                isCategoryLockedName(catName) {
+                    const target = String(catName || '').trim().toLowerCase();
+                    if (!target) return false;
+                    return this.lockedCategories.some(c => String(c || '').trim().toLowerCase() === target);
+                },
+                isItemManualLocked(item) {
+                    if (!item) return false;
+                    return this.isCategoryLockedName(item['Kategori']);
+                },
+                notifyCategoryLocked(item) {
+                    const cat = item && item['Kategori'] ? item['Kategori'] : 'Kategori ini';
+                    this.playSound('error');
+                    this.triggerErrorShake();
+                    this.notify('error', `Kategori ${cat} Terkunci`, 'Input manual dinonaktifkan. Wajib menggunakan scan barcode.');
+                },
+                toggleLockedCategory(catName) {
+                    if (!this.isAdminLoggedIn) return;
+                    const target = String(catName || '').trim();
+                    const lower = target.toLowerCase();
+                    const existsIdx = this.lockedCategories.findIndex(c => String(c || '').trim().toLowerCase() === lower);
+                    if (existsIdx !== -1) {
+                        this.lockedCategories.splice(existsIdx, 1);
+                    } else {
+                        this.lockedCategories.push(target);
+                    }
+                },
+                lockAllCategories() {
+                    if (!this.isAdminLoggedIn) return;
+                    this.lockedCategories = [...this.allLockableCategories];
+                },
+                unlockAllCategories() {
+                    if (!this.isAdminLoggedIn) return;
+                    this.lockedCategories = [];
+                },
+                applyServerLockedCategories(lockCfg) {
+                    if (!lockCfg || typeof lockCfg !== 'object') return;
+                    const updatedAt = Number(lockCfg.updatedAt || 0);
+                    if (updatedAt >= this.lockedCategoriesUpdatedAt && Array.isArray(lockCfg.categories)) {
+                        this.lockedCategoriesUpdatedAt = updatedAt;
+                        this.lockedCategories = [...lockCfg.categories];
+                        try {
+                            localStorage.setItem('vapeboss_checker_locked_cats_v1', JSON.stringify(this.lockedCategories));
+                        } catch (e) {}
+                    }
+                },
+                async saveLockedCategoriesFromAdmin() {
+                    if (!this.isAdminLoggedIn || this.isSavingLockCentral) return;
+                    this.isSavingLockCentral = true;
+                    try {
+                        localStorage.setItem('vapeboss_checker_locked_cats_v1', JSON.stringify(this.lockedCategories));
+                        const result = await this.fetchWithRetry(this.apiUrl, {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                admin_action: 'save_locked_categories',
+                                admin_email: this.adminEmail,
+                                categories: this.lockedCategories
+                            }),
+                            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                        }, 3);
+                        if (result && result.status === 'success') {
+                            if (result.locked_categories) {
+                                this.applyServerLockedCategories(result.locked_categories);
+                            }
+                            this.playSound('klop');
+                            this.notify('success', 'Pengaturan Lock Disimpan', this.lockedCategories.length > 0 ? `Wajib Scan aktif: ${this.lockedCategories.join(', ')}` : 'Semua kategori terbuka.');
+                        } else {
+                            this.notify('error', 'Gagal Menyimpan Lock', (result && result.message) || 'Terjadi kesalahan.');
+                        }
+                    } catch (e) {
+                        this.notify('error', 'Gangguan Jaringan', 'Pengaturan lock tersimpan lokal, klik Simpan lagi untuk sinkron ke server.');
+                    } finally {
+                        this.isSavingLockCentral = false;
+                    }
+                },
+
+                onScanInputKeydown(event) {
+                    if (!event || !event.key) return;
+                    if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                        this.scanKeyTimestamps.push(performance.now());
+                    } else if (event.key === 'Backspace' || event.key === 'Delete') {
+                        this.scanKeyTimestamps = [];
+                    }
+                },
+                onScanInputPaste() {
+                    this.scanWasPasted = true;
+                },
+                isLikelyHardwareScannerInput(item, rawInputStr) {
+                    if (!item || this.scanWasPasted) return false;
+                    const code = String(item['Kode Barang'] || '').trim().toLowerCase();
+                    const raw = String(rawInputStr || '').trim().toLowerCase();
+                    if (!code || raw !== code) return false;
+
+                    const times = this.scanKeyTimestamps;
+                    if (!Array.isArray(times) || times.length < 3) {
+                        return false;
+                    }
+                    const durationMs = times[times.length - 1] - times[0];
+                    const avgIntervalMs = durationMs / (times.length - 1);
+                    return avgIntervalMs <= 85;
+                },
+
                 async syncCentralConfig() {
                     try {
                         const res = await fetch(`${this.apiUrl}?action=checker_config`, { redirect: 'follow' });
@@ -1485,6 +1816,9 @@
                             }
                             if (json.route_status) {
                                 this.applyServerRouteStatusMap(json.route_status);
+                            }
+                            if (json.locked_categories) {
+                                this.applyServerLockedCategories(json.locked_categories);
                             }
                         }
                     } catch (e) {}
@@ -1904,7 +2238,8 @@
                     this.config = {
                         homeUrl: 'https://byteandbay.github.io/portal-utama/',
                         pickerUrl: 'https://byteandbay.github.io/picker-webapp/',
-                        checkerUrl: 'https://byteandbay.github.io/portal-checker/'
+                        checkerUrl: 'https://byteandbay.github.io/portal-checker/',
+                        barcodeUrl: 'https://byteandbay.github.io/portal-barcode/'
                     };
                     this.saveConfig();
                 },
@@ -2251,6 +2586,10 @@
                 },
 
                 openManualEdit(item) {
+                    if (this.isItemManualLocked(item)) {
+                        this.notifyCategoryLocked(item);
+                        return;
+                    }
                     this.routeItems.forEach(i => { if (i !== item) i.editMode = false; });
                     item.editMode = true;
                 },
@@ -2263,6 +2602,12 @@
                     this.$nextTick(() => { if (this.$refs.scanInput) this.$refs.scanInput.focus(); });
                 },
                 onManualQtyInput(item, event) {
+                    if (this.isItemManualLocked(item)) {
+                        event.target.value = item['Fisik'];
+                        item.editMode = false;
+                        this.notifyCategoryLocked(item);
+                        return;
+                    }
                     if (Date.now() < this.barcodeStreamLockUntil) {
                         event.target.value = item['Fisik'];
                         return;
@@ -2294,6 +2639,10 @@
                     this.persistItemState(item);
                 },
                 adjustFisik(item, delta) {
+                    if (this.isItemManualLocked(item)) {
+                        this.notifyCategoryLocked(item);
+                        return;
+                    }
                     const next = (Number(item['Fisik']) || 0) + delta;
                     if (next < 0 || next > 9999) return;
                     item['Fisik'] = next;
@@ -2312,6 +2661,10 @@
                     this.playItemStatusSound(item);
                 },
                 setFisikZero(item) {
+                    if (this.isItemManualLocked(item)) {
+                        this.notifyCategoryLocked(item);
+                        return;
+                    }
                     item['Fisik'] = 0;
                     item.scanTimestamps = [];
                     item.scanLogs = [];
@@ -2368,12 +2721,18 @@
                     this.processScanOrManualStep();
                 },
                 selectCustomSuggestion(name) {
+                    const matched = this.routeLookupMap.byName.get(String(name || '').trim().toLowerCase()) || null;
+                    if (matched && this.isItemManualLocked(matched)) {
+                        this.notifyCategoryLocked(matched);
+                        this.cancelCurrentScan();
+                        return;
+                    }
                     this.currentScan = name;
                     this.suggestionIndex = -1;
-                    this.$nextTick(() => { this.processScanOrManualStep(); });
+                    this.$nextTick(() => { this.processScanOrManualStep(true); });
                 },
 
-                processScanOrManualStep() {
+                processScanOrManualStep(fromSuggestion = false) {
                     if (!this.checkerForm.cabang || !this.checkerForm.noIt) {
                         this.playSound('error');
                         this.triggerErrorShake();
@@ -2383,6 +2742,7 @@
                     }
                     if (!this.currentScan) return;
 
+                    const rawInput = this.currentScan;
                     const item = this.foundItemLive;
                     if (!item) {
                         this.playSound('error');
@@ -2392,6 +2752,17 @@
                         this.$nextTick(() => {
                             if (this.$refs.scanInput) this.$refs.scanInput.focus();
                         });
+                        return;
+                    }
+
+                    if (this.isItemManualLocked(item)) {
+                        const isValidHardwareScan = !fromSuggestion && this.isLikelyHardwareScannerInput(item, rawInput);
+                        if (!isValidHardwareScan) {
+                            this.notifyCategoryLocked(item);
+                            this.cancelCurrentScan();
+                            return;
+                        }
+                        this.executeDirectScan(item);
                         return;
                     }
 
@@ -2512,6 +2883,11 @@
                         this.notify('warning', 'Pilih / Scan Barang Dahulu', 'Scan atau pilih barang terlebih dahulu sebelum menambah kuantitas manual.');
                         return;
                     }
+                    if (this.isItemManualLocked(targetItem)) {
+                        this.notifyCategoryLocked(targetItem);
+                        this.cancelCurrentScan();
+                        return;
+                    }
 
                     const rawQtyStr = String(this.currentScanQty || '').trim();
                     if (!rawQtyStr) return;
@@ -2629,6 +3005,9 @@
                             }
                             if (result.route_status) {
                                 this.applyServerRouteStatusMap(result.route_status);
+                            }
+                            if (result.locked_categories) {
+                                this.applyServerLockedCategories(result.locked_categories);
                             }
                             this.checkerItems = result.data.map(item => {
                                 const key = `${item['Gudang Tujuan/Dari']}__${item['No. Pemindahan #']}__${item['Kode Barang']}`;
