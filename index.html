@@ -70,7 +70,7 @@
 </head>
 <body class="text-slate-800 antialiased">
     <!-- Event @click="closeAllNoteMenus" berada di dalam #app agar tidak memicu Blank Screen -->
-    <div id="app" v-cloak @click="closeAllNoteMenus" class="mx-auto min-h-screen w-full max-w-6xl bg-white shadow-2xl flex flex-col relative">
+    <div id="app" v-cloak @click="closeAllNoteMenus" class="mx-auto min-h-screen w-full max-w-7xl bg-white shadow-2xl flex flex-col relative">
         
         <!-- TOAST NOTIFICATION (Non-Blocking, Tanpa Refresh Halaman) -->
         <div class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4">
@@ -141,9 +141,11 @@
                     <span class="opacity-40">|</span>
                     <button @click="playSound('lebih')" title="Tes Suara Lebih" class="px-2 py-0.5 rounded-full hover:bg-rose-500/30 text-rose-200 transition">Nada Lebih</button>
                     <span class="opacity-40">|</span>
-                    <button @click="adjustVolume(-25)" title="Turunkan Volume" class="w-5 h-5 rounded-full bg-blue-950/70 hover:bg-blue-950 text-white font-black flex items-center justify-center">-</button>
-                    <span class="px-1 text-white font-extrabold min-w-[38px] text-center" title="Volume Suara (Maks 300%)">{{ soundVolume }}%</span>
-                    <button @click="adjustVolume(25)" title="Naikkan Volume (Sampai 300%)" class="w-5 h-5 rounded-full bg-blue-950/70 hover:bg-blue-950 text-white font-black flex items-center justify-center">+</button>
+                    <button @click="playSound('tidak_ada')" title="Tes Suara Barang Tidak Ada" class="px-2 py-0.5 rounded-full hover:bg-purple-500/30 text-purple-200 transition">Tidak Ada</button>
+                    <span class="opacity-40">|</span>
+                    <button @click="adjustVolume(-10)" title="Turunkan Volume" class="w-5 h-5 rounded-full bg-blue-950/70 hover:bg-blue-950 text-white font-black flex items-center justify-center">-</button>
+                    <span class="px-1 text-white font-extrabold min-w-[38px] text-center" title="Volume Suara (0% - 100%)">{{ soundVolume }}%</span>
+                    <button @click="adjustVolume(10)" title="Naikkan Volume" class="w-5 h-5 rounded-full bg-blue-950/70 hover:bg-blue-950 text-white font-black flex items-center justify-center">+</button>
                 </div>
 
                 <!-- Tombol Pengaturan & Login Admin -->
@@ -641,7 +643,7 @@
         <div class="fixed inset-0 bg-black/60 z-40 transition-opacity duration-300" 
              :class="portalMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'" 
              @click="portalMenuOpen = false"></div>
-        <div @click.stop class="bottom-sheet fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#d4e157] rounded-t-3xl p-7 z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.3)]" 
+        <div @click.stop class="bottom-sheet fixed bottom-0 left-0 right-0 md:bottom-auto md:top-1/2 md:-translate-y-1/2 max-w-md md:max-w-2xl mx-auto bg-[#d4e157] rounded-t-3xl md:rounded-3xl p-7 z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.3)]" 
              :class="portalMenuOpen ? 'sheet-visible' : 'sheet-hidden'">
             <div class="w-16 h-1.5 bg-black/20 rounded-full mx-auto mb-5"></div>
             <p class="text-center text-xs font-extrabold uppercase tracking-wider text-slate-800 mb-4">
@@ -696,22 +698,23 @@
                     <button @click="showConfigModal = false" class="text-slate-400 hover:text-slate-700 font-black text-lg">X</button>
                 </div>
 
-                <!-- 1. KONTROL VOLUME SUARA (0% - 300% MAKSIMAL SPEAKER) -->
+                <!-- 1. KONTROL VOLUME SUARA (0% - 100% DENGAN PENGUAT INTERNAL) -->
                 <div class="border border-slate-200 rounded-xl p-3.5 bg-slate-50">
                     <div class="flex items-center justify-between mb-2">
                         <span class="font-extrabold text-xs uppercase text-slate-800">Volume Suara</span>
                         <span class="font-black text-xs text-blue-800">{{ soundVolume }}%</span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button @click="adjustVolume(-25)" class="w-8 h-8 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 font-black text-sm text-slate-800">-</button>
-                        <input type="range" min="0" max="300" step="5" v-model.number="soundVolume" @input="saveLocalVolume" class="flex-1 accent-blue-700 cursor-pointer">
-                        <button @click="adjustVolume(25)" class="w-8 h-8 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 font-black text-sm text-slate-800">+</button>
+                        <button @click="adjustVolume(-10)" class="w-8 h-8 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 font-black text-sm text-slate-800">-</button>
+                        <input type="range" min="0" max="100" step="5" v-model.number="soundVolume" @input="saveLocalVolume" class="flex-1 accent-blue-700 cursor-pointer">
+                        <button @click="adjustVolume(10)" class="w-8 h-8 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 font-black text-sm text-slate-800">+</button>
                         <button @click="setMaxVolume" class="px-2.5 h-8 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-extrabold text-[11px]">Max</button>
                     </div>
-                    <div class="flex gap-1.5 mt-2.5">
-                        <button @click="playSound('kurang')" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-[11px] py-1.5 rounded-lg">Tes Kurang</button>
-                        <button @click="playSound('klop')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] py-1.5 rounded-lg">Tes Klop</button>
-                        <button @click="playSound('lebih')" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-[11px] py-1.5 rounded-lg">Tes Lebih</button>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-2.5">
+                        <button @click="playSound('kurang')" class="bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-[11px] py-1.5 rounded-lg">Tes Kurang</button>
+                        <button @click="playSound('klop')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] py-1.5 rounded-lg">Tes Klop</button>
+                        <button @click="playSound('lebih')" class="bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-[11px] py-1.5 rounded-lg">Tes Lebih</button>
+                        <button @click="playSound('tidak_ada')" class="bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-[11px] py-1.5 rounded-lg">Tes Tidak Ada</button>
                     </div>
                 </div>
 
@@ -815,6 +818,31 @@
                                             <input type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.webm" class="hidden" @change="onUploadCustomSound('lebih', $event)">
                                         </label>
                                         <button v-if="soundSettings.lebih.fileName" @click="clearCustomSound('lebih')" class="bg-red-100 text-red-700 font-bold text-xs px-2 py-1.5 rounded-md">X</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Nada Tidak Ada (Barang Tidak Ditemukan di Sistem/Rute) -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center bg-white p-2.5 rounded-lg border border-purple-200">
+                                <div>
+                                    <label class="block text-[10px] font-extrabold text-purple-900 uppercase mb-1">Nada Tidak Ada</label>
+                                    <select v-model="soundSettings.tidak_ada.mode" class="w-full border border-slate-300 rounded-md p-1.5 text-xs font-bold text-slate-800 bg-white outline-none">
+                                        <option value="preset_1">Preset 1 - Error Rendah</option>
+                                        <option value="preset_2">Preset 2 - Double Buzz</option>
+                                        <option value="preset_3">Preset 3 - Warning Drop</option>
+                                        <option value="preset_4">Preset 4 - Klakson Tolak</option>
+                                        <option value="preset_5">Preset 5 - Pulse Alert</option>
+                                        <option value="custom" :disabled="!soundSettings.tidak_ada.fileName">Upload {{ soundSettings.tidak_ada.fileName ? '(' + soundSettings.tidak_ada.fileName + ')' : '' }}</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">File Audio</label>
+                                    <div class="flex items-center gap-1">
+                                        <label class="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-md px-2.5 py-1.5 text-xs font-bold text-slate-700 cursor-pointer text-center truncate">
+                                            <span>{{ soundSettings.tidak_ada.fileName || 'Upload Audio...' }}</span>
+                                            <input type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.webm" class="hidden" @change="onUploadCustomSound('tidak_ada', $event)">
+                                        </label>
+                                        <button v-if="soundSettings.tidak_ada.fileName" @click="clearCustomSound('tidak_ada')" class="bg-red-100 text-red-700 font-bold text-xs px-2 py-1.5 rounded-md">X</button>
                                     </div>
                                 </div>
                             </div>
@@ -1084,8 +1112,8 @@
                     savedPackOf = JSON.parse(localStorage.getItem('checkerPackOfMap_v1'));
                     savedSoundCfg = JSON.parse(localStorage.getItem('vapeboss_checker_sound_cfg_v1'));
                     const rawVol = Number(localStorage.getItem('vapeboss_checker_volume_v1'));
-                    if (!isNaN(rawVol) && rawVol >= 0 && rawVol <= 300) {
-                        savedVolume = rawVol;
+                    if (!isNaN(rawVol) && rawVol >= 0) {
+                        savedVolume = Math.max(0, Math.min(100, rawVol));
                     }
                     const rawMode = localStorage.getItem('vapeboss_checker_scan_mode_v1');
                     if (rawMode === 'manual' || rawMode === 'auto') {
@@ -1163,20 +1191,23 @@
 
                     soundVolume: savedVolume,
                     centralSoundUpdatedAt: 0,
-                    soundSettings: savedSoundCfg || {
+                    soundSettings: Object.assign({
                         kurang: { mode: 'preset_1', fileName: '' },
                         klop: { mode: 'preset_1', fileName: '' },
-                        lebih: { mode: 'preset_1', fileName: '' }
-                    },
+                        lebih: { mode: 'preset_1', fileName: '' },
+                        tidak_ada: { mode: 'preset_1', fileName: '' }
+                    }, savedSoundCfg || {}),
                     customAudioDataUrls: {
                         kurang: null,
                         klop: null,
-                        lebih: null
+                        lebih: null,
+                        tidak_ada: null
                     },
                     customAudioBuffers: {
                         kurang: null,
                         klop: null,
-                        lebih: null
+                        lebih: null,
+                        tidak_ada: null
                     },
 
                     routeStatusMap: savedRouteStatusMap,
@@ -1678,20 +1709,21 @@
                             this.soundSettings = {
                                 kurang: Object.assign({ mode: 'preset_1', fileName: '' }, soundCfg.settings.kurang || {}),
                                 klop: Object.assign({ mode: 'preset_1', fileName: '' }, soundCfg.settings.klop || {}),
-                                lebih: Object.assign({ mode: 'preset_1', fileName: '' }, soundCfg.settings.lebih || {})
+                                lebih: Object.assign({ mode: 'preset_1', fileName: '' }, soundCfg.settings.lebih || {}),
+                                tidak_ada: Object.assign({ mode: 'preset_1', fileName: '' }, soundCfg.settings.tidak_ada || {})
                             };
                             try {
                                 localStorage.setItem('vapeboss_checker_sound_cfg_v1', JSON.stringify(this.soundSettings));
                             } catch (e) {}
                         }
                         if (typeof soundCfg.volume === 'number' && !localStorage.getItem('vapeboss_checker_volume_custom_v1')) {
-                            this.soundVolume = Math.max(0, Math.min(300, soundCfg.volume));
+                            this.soundVolume = Math.max(0, Math.min(100, soundCfg.volume));
                             try {
                                 localStorage.setItem('vapeboss_checker_volume_v1', String(this.soundVolume));
                             } catch (e) {}
                         }
                         if (soundCfg.customAudio && typeof soundCfg.customAudio === 'object') {
-                            const types = ['kurang', 'klop', 'lebih'];
+                            const types = ['kurang', 'klop', 'lebih', 'tidak_ada'];
                             for (let i = 0; i < types.length; i++) {
                                 const t = types[i];
                                 const dUrl = soundCfg.customAudio[t];
@@ -1845,7 +1877,8 @@
                                 custom_audio: {
                                     kurang: this.soundSettings.kurang.mode === 'custom' ? (this.customAudioDataUrls.kurang || '') : '',
                                     klop: this.soundSettings.klop.mode === 'custom' ? (this.customAudioDataUrls.klop || '') : '',
-                                    lebih: this.soundSettings.lebih.mode === 'custom' ? (this.customAudioDataUrls.lebih || '') : ''
+                                    lebih: this.soundSettings.lebih.mode === 'custom' ? (this.customAudioDataUrls.lebih || '') : '',
+                                    tidak_ada: this.soundSettings.tidak_ada.mode === 'custom' ? (this.customAudioDataUrls.tidak_ada || '') : ''
                                 }
                             }),
                             headers: { 'Content-Type': 'text/plain;charset=utf-8' }
@@ -1952,13 +1985,13 @@
                 },
 
                 adjustVolume(delta) {
-                    const next = Math.max(0, Math.min(300, (Number(this.soundVolume) || 0) + delta));
+                    const next = Math.max(0, Math.min(100, (Number(this.soundVolume) || 0) + delta));
                     this.soundVolume = next;
                     this.saveLocalVolume();
                     this.playSound('klop');
                 },
                 setMaxVolume() {
-                    this.soundVolume = 300;
+                    this.soundVolume = 100;
                     this.saveLocalVolume();
                     this.playSound('klop');
                 },
@@ -2303,7 +2336,7 @@
                     }
                 },
                 async loadCustomSoundsFromIdb() {
-                    const types = ['kurang', 'klop', 'lebih'];
+                    const types = ['kurang', 'klop', 'lebih', 'tidak_ada'];
                     for (let i = 0; i < types.length; i++) {
                         const t = types[i];
                         try {
@@ -2385,7 +2418,7 @@
                 },
                 async resetDefaultSounds() {
                     if (!this.isAdminLoggedIn) return;
-                    const types = ['kurang', 'klop', 'lebih'];
+                    const types = ['kurang', 'klop', 'lebih', 'tidak_ada'];
                     for (let i = 0; i < types.length; i++) {
                         await this.saveAudioToIdb(types[i], null);
                         this.customAudioDataUrls[types[i]] = null;
@@ -2398,7 +2431,8 @@
 
                 async playSound(type) {
                     try {
-                        const volRatio = Math.max(0, Math.min(300, Number(this.soundVolume) || 0)) / 100;
+                        const resolvedType = (type === 'error') ? 'tidak_ada' : type;
+                        const volRatio = Math.max(0, Math.min(100, Number(this.soundVolume) || 0)) / 100;
                         if (volRatio <= 0) return;
 
                         const ctx = this.ensureAudioContext();
@@ -2408,24 +2442,38 @@
                             } catch (e) {}
                         }
 
+                        const preGain = ctx.createGain();
+                        preGain.gain.setValueAtTime(volRatio * 8.5, ctx.currentTime);
+
                         const compressor = ctx.createDynamicsCompressor();
-                        compressor.threshold.setValueAtTime(-3, ctx.currentTime);
+                        compressor.threshold.setValueAtTime(-14, ctx.currentTime);
                         compressor.knee.setValueAtTime(6, ctx.currentTime);
-                        compressor.ratio.setValueAtTime(12, ctx.currentTime);
-                        compressor.attack.setValueAtTime(0.002, ctx.currentTime);
-                        compressor.release.setValueAtTime(0.15, ctx.currentTime);
+                        compressor.ratio.setValueAtTime(16, ctx.currentTime);
+                        compressor.attack.setValueAtTime(0.001, ctx.currentTime);
+                        compressor.release.setValueAtTime(0.12, ctx.currentTime);
 
-                        const masterGain = ctx.createGain();
-                        masterGain.gain.setValueAtTime(volRatio * 1.85, ctx.currentTime);
-                        masterGain.connect(compressor);
-                        compressor.connect(ctx.destination);
+                        const makeupGain = ctx.createGain();
+                        makeupGain.gain.setValueAtTime(1.35, ctx.currentTime);
 
-                        if (type === 'kurang' || type === 'klop' || type === 'lebih') {
-                            const cfg = this.soundSettings[type] || { mode: 'preset_1' };
-                            if (cfg.mode === 'custom' && this.customAudioDataUrls[type]) {
-                                let buf = this.customAudioBuffers[type];
+                        const limiter = ctx.createDynamicsCompressor();
+                        limiter.threshold.setValueAtTime(-1, ctx.currentTime);
+                        limiter.knee.setValueAtTime(0, ctx.currentTime);
+                        limiter.ratio.setValueAtTime(20, ctx.currentTime);
+                        limiter.attack.setValueAtTime(0.001, ctx.currentTime);
+                        limiter.release.setValueAtTime(0.05, ctx.currentTime);
+
+                        preGain.connect(compressor);
+                        compressor.connect(makeupGain);
+                        makeupGain.connect(limiter);
+                        limiter.connect(ctx.destination);
+                        const masterGain = preGain;
+
+                        if (resolvedType === 'kurang' || resolvedType === 'klop' || resolvedType === 'lebih' || resolvedType === 'tidak_ada') {
+                            const cfg = this.soundSettings[resolvedType] || { mode: 'preset_1' };
+                            if (cfg.mode === 'custom' && this.customAudioDataUrls[resolvedType]) {
+                                let buf = this.customAudioBuffers[resolvedType];
                                 if (!buf) {
-                                    buf = await this.decodeDataUrlToBuffer(type, this.customAudioDataUrls[type]);
+                                    buf = await this.decodeDataUrlToBuffer(resolvedType, this.customAudioDataUrls[resolvedType]);
                                 }
                                 if (buf) {
                                     const src = ctx.createBufferSource();
@@ -2434,7 +2482,7 @@
                                     src.start(0);
                                     return;
                                 } else {
-                                    const audio = new Audio(this.customAudioDataUrls[type]);
+                                    const audio = new Audio(this.customAudioDataUrls[resolvedType]);
                                     audio.volume = Math.min(1, volRatio);
                                     audio.currentTime = 0;
                                     audio.play().catch(() => {});
@@ -2516,8 +2564,25 @@
                                 playTone(880, 'sawtooth', now + 0.24, 0.16, 0.95);
                             }
                         } else {
-                            playTone(160, 'sawtooth', now, 0.18, 0.95);
-                            playTone(130, 'sawtooth', now + 0.20, 0.25, 0.95);
+                            const mode = (this.soundSettings.tidak_ada && this.soundSettings.tidak_ada.mode) || 'preset_1';
+                            if (mode === 'preset_2') {
+                                playTone(190, 'square', now, 0.12, 0.92);
+                                playTone(190, 'square', now + 0.15, 0.16, 0.95);
+                            } else if (mode === 'preset_3') {
+                                playTone(420, 'sawtooth', now, 0.10, 0.92);
+                                playTone(260, 'sawtooth', now + 0.11, 0.12, 0.92);
+                                playTone(150, 'sawtooth', now + 0.24, 0.20, 0.96);
+                            } else if (mode === 'preset_4') {
+                                playTone(135, 'sawtooth', now, 0.36, 0.98);
+                            } else if (mode === 'preset_5') {
+                                playTone(740, 'square', now, 0.08, 0.90);
+                                playTone(320, 'square', now + 0.10, 0.10, 0.92);
+                                playTone(740, 'square', now + 0.22, 0.08, 0.90);
+                                playTone(240, 'square', now + 0.32, 0.16, 0.95);
+                            } else {
+                                playTone(160, 'sawtooth', now, 0.18, 0.95);
+                                playTone(130, 'sawtooth', now + 0.20, 0.25, 0.95);
+                            }
                         }
                     } catch (e) {}
                 },
