@@ -640,11 +640,9 @@
         <!-- ============================================================== -->
         <!-- BOTTOM SHEET MENU NAVIGASI ANTAR PORTAL (C -> A atau B)        -->
         <!-- ============================================================== -->
-        <div class="fixed inset-0 bg-black/60 z-40 transition-opacity duration-300" 
-             :class="portalMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'" 
+        <div v-show="portalMenuOpen" class="fixed inset-0 bg-black/60 z-40 transition-opacity duration-300"
              @click="portalMenuOpen = false"></div>
-        <div @click.stop class="bottom-sheet fixed bottom-0 left-0 right-0 md:bottom-auto md:top-1/2 md:-translate-y-1/2 max-w-md md:max-w-2xl mx-auto bg-[#d4e157] rounded-t-3xl md:rounded-3xl p-7 z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.3)]" 
-             :class="portalMenuOpen ? 'sheet-visible' : 'sheet-hidden'">
+        <div @click.stop v-show="portalMenuOpen" class="fixed bottom-0 left-0 right-0 md:bottom-auto md:top-1/2 md:-translate-y-1/2 max-w-md md:max-w-xl mx-auto bg-[#d4e157] rounded-t-3xl md:rounded-3xl p-6 max-h-[90vh] overflow-y-auto z-50 shadow-2xl">
             <div class="w-16 h-1.5 bg-black/20 rounded-full mx-auto mb-5"></div>
             <p class="text-center text-xs font-extrabold uppercase tracking-wider text-slate-800 mb-4">
                 Navigasi Antar Portal Vapeboss
