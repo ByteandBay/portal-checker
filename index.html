@@ -1501,9 +1501,12 @@
 
                     this.isSendingBarcodeQueue = true;
                     try {
+                        const totalQty = validItems.reduce((s, r) => s + r.qty, 0);
                         const result = await this.fetchWithRetry(this.apiUrl, {
                             method: 'POST',
+                            redirect: 'follow',
                             body: JSON.stringify({
+                                request_id: `bc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
                                 barcode_action: 'enqueue',
                                 pic: this.checkerForm.pic || 'Checker',
                                 cabang: this.checkerForm.cabang || '-',
@@ -1513,12 +1516,14 @@
                             headers: { 'Content-Type': 'text/plain;charset=utf-8' }
                         }, 3);
 
-                        if (result && result.status === 'success') {
+                        if (result && result.status === 'success' && result.job_id && Number(result.count) > 0) {
                             this.playSound('klop');
                             this.showBarcodePrintModal = false;
-                            this.notify('success', 'Masuk Antrean Cetak', `${validItems.length} SKU (${this.barcodePrintTotalQty} stiker) dikirim ke Portal Barcode.`);
+                            this.notify('success', 'Masuk Antrean Cetak', `${validItems.length} SKU (${totalQty} stiker) dikirim ke Portal Barcode.`);
+                        } else if (result && result.status === 'success' && !result.job_id) {
+                            this.notify('error', 'Server GAS Belum Diperbarui', 'Antrean tidak tercatat karena GAS masih versi lama. Lakukan Deploy -> Kelola deployment -> Edit -> Versi baru pada GAS.');
                         } else {
-                            this.notify('error', 'Gagal Kirim Antrean', (result && result.message) || 'Terjadi kesalahan.');
+                            this.notify('error', 'Gagal Kirim Antrean', (result && result.message) || 'Terjadi kesalahan saat mengirim ke server.');
                         }
                     } catch (e) {
                         this.notify('error', 'Gangguan Jaringan', 'Gagal mengirim antrean cetak barcode. Silakan coba lagi.');
